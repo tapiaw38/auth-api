@@ -1,0 +1,38 @@
+version: '3.8'
+
+# Define services
+services:
+  database:
+    container_name: "database"
+    image: postgres:14-alpine
+    ports:
+      - ${DB_PORT}:5432
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+    networks:
+      - fullstack
+    volumes:
+      - ./init-database.sh:/docker-entrypoint-initdb.d/init-database.sh
+  redis:
+    container_name: "redis"
+    image: redis:alpine
+    command: redis-server /usr/local/etc/redis/redis.conf --requirepass ${REDIS_PASSWORD}
+    ports:
+      - ${REDIS_PORT}:6379
+    volumes:
+      - $PWD/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - fullstack
+# Define volumes
+volumes:
+  database_postgres:
+
+# Define networks
+networks:
+  fullstack:
+    driver: bridge

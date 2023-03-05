@@ -1,0 +1,28 @@
+# Ignore vendor directories
+vendor/
+*/vendor/
+
+# Ignore go build files
+*.exe
+*.test
+
+# Ignore go binary and log files
+*.log
+*.out
+
+# Ignore editor and system files
+.idea/
+.vscode/
+.DS_Store
+.env
+
+# Ignore database files
+*.sql
+*.dump
+
+# Ignore redis data
+*.rdb
+
+# Ignore node modules
+node_modules/
+*/node_modules/
