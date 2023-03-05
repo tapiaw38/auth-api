@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	"github.com/tapiaw38/auth-api/router"
-	"github.com/tapiaw38/auth-api/server"
+	"github.com/tapiaw38/auth-api/internal/router"
+	"github.com/tapiaw38/auth-api/internal/server"
 )
 
 func main() {
@@ -35,21 +35,13 @@ func main() {
 	// GOOGLE
 	GOOGLE_CLIENT_ID := os.Getenv("GOOGLE_CLIENT_ID")
 	GOOGLE_CLIENT_SECRET := os.Getenv("GOOGLE_CLIENT_SECRET")
-
-	// Production mode
-	var HOST string
-	if GIN_MODE == "release" {
-		HOST = os.Getenv("HOST")
-	} else {
-		HOST = "http://localhost:" + PORT
-	}
+	FRONTEND_URL := os.Getenv("FRONTEND_URL")
 
 	s, err := server.NewServer(&server.Config{
 		GinMode:            GIN_MODE,
 		Port:               PORT,
 		JWTSecret:          JW_SECRET,
 		DatabaseURL:        DATABASE_URL,
-		Host:               HOST,
 		AWSRegion:          AWS_REGION,
 		AWSAccessKeyID:     AWS_ACCESS_KEY_ID,
 		AWSSecretAccessKey: AWS_SECRET_ACCESS_KEY,
@@ -60,6 +52,7 @@ func main() {
 		RedisExpires:       10,
 		GoogleClientID:     GOOGLE_CLIENT_ID,
 		GoogleClientSecret: GOOGLE_CLIENT_SECRET,
+		FrontendURL:        FRONTEND_URL,
 	})
 
 	if err != nil {

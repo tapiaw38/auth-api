@@ -2,9 +2,9 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/tapiaw38/auth-api/handlers"
-	"github.com/tapiaw38/auth-api/middleware"
-	"github.com/tapiaw38/auth-api/server"
+	"github.com/tapiaw38/auth-api/internal/handlers"
+	"github.com/tapiaw38/auth-api/internal/middleware"
+	"github.com/tapiaw38/auth-api/internal/server"
 )
 
 // BinderRoutes mounts the routes and the middleware

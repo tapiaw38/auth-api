@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/tapiaw38/auth-api/models"
+	"github.com/tapiaw38/auth-api/internal/models"
 )
 
 // InsertUser inserts a new user into the database

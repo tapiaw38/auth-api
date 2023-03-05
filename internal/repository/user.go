@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"github.com/tapiaw38/auth-api/models"
+	"github.com/tapiaw38/auth-api/internal/models"
 )
 
 func InsertUser(ctx context.Context, user *models.User) (*models.UserResponse, error) {

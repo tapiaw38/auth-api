@@ -3,7 +3,7 @@ package database
 import (
 	"database/sql"
 
-	"github.com/tapiaw38/auth-api/models"
+	"github.com/tapiaw38/auth-api/internal/models"
 )
 
 // scanner is the interface that wraps the basic Scan method.

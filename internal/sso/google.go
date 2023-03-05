@@ -3,7 +3,7 @@ package sso
 import (
 	"context"
 
-	"github.com/tapiaw38/auth-api/models"
+	"github.com/tapiaw38/auth-api/internal/models"
 	"golang.org/x/oauth2"
 	googleauth "google.golang.org/api/oauth2/v2"
 	"google.golang.org/api/option"
@@ -12,12 +12,14 @@ import (
 type GoogleClient struct {
 	ClientID     string
 	ClientSecret string
+	FrontendURL  string
 }
 
 func NewGoogleClient(config *GoogleClient) *GoogleClient {
 	return &GoogleClient{
 		ClientID:     config.ClientID,
 		ClientSecret: config.ClientSecret,
+		FrontendURL:  config.FrontendURL,
 	}
 }
 
@@ -25,7 +27,7 @@ func (g *GoogleClient) GoogleClientInit() *oauth2.Config {
 	oauth := &oauth2.Config{
 		ClientID:     g.ClientID,
 		ClientSecret: g.ClientSecret,
-		RedirectURL:  "http://localhost:3000",
+		RedirectURL:  g.FrontendURL,
 		Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  "https://accounts.google.com/o/oauth2/auth",

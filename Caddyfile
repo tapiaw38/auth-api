@@ -3,7 +3,7 @@ www.{$DOMAIN} {
 }
 
 {$DOMAIN} {
-    reverse_proxy localhost:{$PORT} {
+    reverse_proxy localhost:8000 {
         header_up Host {host}
         header_up X-Real-IP {remote}
         header_up X-Forwarded-Proto {scheme}

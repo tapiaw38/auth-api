@@ -17,7 +17,7 @@ RUN go mod download
 COPY . .
 
 # Build the Go app
-RUN go build -o main .
+RUN go build -o main ./cmd/main.go
 
 # Stage 2: Create a production image
 FROM alpine:latest
@@ -31,7 +31,7 @@ RUN apk update && apk add --no-cache postgresql-client curl && \
 WORKDIR /app
 
 # Copy the database migration scripts
-COPY database/migrations ./database/migrations
+COPY migrations ./migrations
 
 # Copy the binary from the builder stage
 COPY --from=builder /app/main .

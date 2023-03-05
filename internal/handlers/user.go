@@ -8,10 +8,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"github.com/segmentio/ksuid"
-	"github.com/tapiaw38/auth-api/models"
-	"github.com/tapiaw38/auth-api/repository"
-	"github.com/tapiaw38/auth-api/server"
-	"github.com/tapiaw38/auth-api/utils"
+	"github.com/tapiaw38/auth-api/internal/models"
+	"github.com/tapiaw38/auth-api/internal/repository"
+	"github.com/tapiaw38/auth-api/internal/server"
+	"github.com/tapiaw38/auth-api/internal/utils"
 	"golang.org/x/crypto/bcrypt"
 )
 

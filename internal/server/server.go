@@ -7,11 +7,11 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/tapiaw38/auth-api/aws"
-	"github.com/tapiaw38/auth-api/cache"
-	"github.com/tapiaw38/auth-api/database"
-	"github.com/tapiaw38/auth-api/repository"
-	"github.com/tapiaw38/auth-api/sso"
+	"github.com/tapiaw38/auth-api/internal/aws"
+	"github.com/tapiaw38/auth-api/internal/cache"
+	"github.com/tapiaw38/auth-api/internal/database"
+	"github.com/tapiaw38/auth-api/internal/repository"
+	"github.com/tapiaw38/auth-api/internal/sso"
 )
 
 // Config is the server configuration
@@ -20,7 +20,6 @@ type Config struct {
 	Port               string
 	JWTSecret          string
 	DatabaseURL        string
-	Host               string
 	AWSRegion          string
 	AWSAccessKeyID     string
 	AWSSecretAccessKey string
@@ -31,6 +30,7 @@ type Config struct {
 	RedisExpires       time.Duration
 	GoogleClientID     string
 	GoogleClientSecret string
+	FrontendURL        string
 }
 
 // Server is the server interface
@@ -96,6 +96,7 @@ func NewServer(config *Config) (*Broker, error) {
 		google: sso.NewGoogleClient(&sso.GoogleClient{
 			ClientID:     config.GoogleClientID,
 			ClientSecret: config.GoogleClientSecret,
+			FrontendURL:  config.FrontendURL,
 		}),
 		redis: cache.NewRedisCache(&cache.RedisCache{
 			Host:     config.RedisHost,

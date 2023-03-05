@@ -36,7 +36,7 @@ func GetRelativePathToMigrationsDirectory() (string, error) {
 		return "", err
 	}
 
-	absMigrationsDirPath := filepath.Join(cwd, "database", "migrations")
+	absMigrationsDirPath := filepath.Join(cwd, "migrations")
 
 	relMigrationsDirPath, err := filepath.Rel(cwd, absMigrationsDirPath)
 	if err != nil {
