@@ -92,6 +92,7 @@ func SignUpHandler(s server.Server) gin.HandlerFunc {
 			return
 		}
 
+		// Add default role to user
 		_, err = AddRoleToUser(c.Request.Context(), u.Id, "user")
 		if err != nil {
 			response := NewResponse(Error, err.Error(), nil)
@@ -99,6 +100,23 @@ func SignUpHandler(s server.Server) gin.HandlerFunc {
 			return
 		}
 
+		// Send email verification
+		channel := make(chan error)
+		subjet := "Bienvenido a Mi Tur"
+
+		variables := map[string]interface{}{
+			"name": u.FirstName + " " + u.LastName,
+			"link": s.Config().Host + "/auth/verify-email/?id=" + u.Id,
+		}
+
+		go s.Mail().SendEmail(u.Email, subjet, "email_verification", variables, channel)
+
+		err = <-channel
+		if err != nil {
+			log.Println(err)
+		}
+
+		// Send response
 		signUpResponse := SignUpResponse{
 			Id:    u.Id,
 			Email: u.Email,

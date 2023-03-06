@@ -7,47 +7,58 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/tapiaw38/auth-api/internal/aws"
 	"github.com/tapiaw38/auth-api/internal/cache"
 	"github.com/tapiaw38/auth-api/internal/database"
 	"github.com/tapiaw38/auth-api/internal/repository"
 	"github.com/tapiaw38/auth-api/internal/sso"
+	"github.com/tapiaw38/auth-api/internal/utils"
 )
 
 // Config is the server configuration
 type Config struct {
-	GinMode            string
-	Port               string
-	JWTSecret          string
-	DatabaseURL        string
-	AWSRegion          string
-	AWSAccessKeyID     string
-	AWSSecretAccessKey string
-	AWSBucket          string
-	RedisHost          string
-	RedisPassword      string
-	RedisDB            int
-	RedisExpires       time.Duration
-	GoogleClientID     string
-	GoogleClientSecret string
-	FrontendURL        string
+	GinMode              string
+	Port                 string
+	JWTSecret            string
+	DatabaseURL          string
+	Host                 string
+	AWSRegion            string
+	AWSAccessKeyID       string
+	AWSSecretAccessKey   string
+	AWSBucket            string
+	RedisHost            string
+	RedisPassword        string
+	RedisDB              int
+	RedisExpires         time.Duration
+	GoogleClientID       string
+	GoogleClientSecret   string
+	FrontendURL          string
+	EmailHost            string
+	EmailPort            string
+	EmailHostUser        string
+	EmailHostPassword    string
+	MailgunDomain        string
+	MailgunPrivateAPIKey string
 }
 
 // Server is the server interface
 type Server interface {
 	Config() *Config
-	S3() *aws.S3Client
+	S3() *utils.S3Client
 	Google() *sso.GoogleClient
+	Mail() *utils.EmailSMTPConfig
+	Mailgun() *utils.MailgunConfig
 	Redis() *cache.RedisCache
 }
 
 // Broker is the server broker
 type Broker struct {
-	config *Config
-	engine *gin.Engine
-	s3     *aws.S3Client
-	google *sso.GoogleClient
-	redis  *cache.RedisCache
+	config  *Config
+	engine  *gin.Engine
+	s3      *utils.S3Client
+	google  *sso.GoogleClient
+	mail    *utils.EmailSMTPConfig
+	mailgun *utils.MailgunConfig
+	redis   *cache.RedisCache
 }
 
 // Config returns the server configuration
@@ -56,13 +67,23 @@ func (b *Broker) Config() *Config {
 }
 
 // S3 returns the s3 client
-func (b *Broker) S3() *aws.S3Client {
+func (b *Broker) S3() *utils.S3Client {
 	return b.s3
 }
 
 // Google returns the google client
 func (b *Broker) Google() *sso.GoogleClient {
 	return b.google
+}
+
+// Mail returns the mail client
+func (b *Broker) Mail() *utils.EmailSMTPConfig {
+	return b.mail
+}
+
+// Mailgun returns the mailgun client
+func (b *Broker) Mailgun() *utils.MailgunConfig {
+	return b.mailgun
 }
 
 // Redis returns the redis client
@@ -87,7 +108,7 @@ func NewServer(config *Config) (*Broker, error) {
 	broker := &Broker{
 		config: config,
 		engine: gin.Default(),
-		s3: aws.NewSession(&aws.S3Config{
+		s3: utils.NewSession(&utils.S3Config{
 			AWSRegion:          config.AWSRegion,
 			AWSAccessKeyID:     config.AWSAccessKeyID,
 			AWSSecretAccessKey: config.AWSSecretAccessKey,
@@ -97,6 +118,16 @@ func NewServer(config *Config) (*Broker, error) {
 			ClientID:     config.GoogleClientID,
 			ClientSecret: config.GoogleClientSecret,
 			FrontendURL:  config.FrontendURL,
+		}),
+		mail: utils.NewEmailSMTPConfig(&utils.EmailSMTPConfig{
+			Host:         config.EmailHost,
+			Port:         config.EmailPort,
+			HostUser:     config.EmailHostUser,
+			HostPassword: config.EmailHostPassword,
+		}),
+		mailgun: utils.NewMailgunConfig(&utils.MailgunConfig{
+			Domain:        config.MailgunDomain,
+			PrivateAPIKey: config.MailgunPrivateAPIKey,
 		}),
 		redis: cache.NewRedisCache(&cache.RedisCache{
 			Host:     config.RedisHost,
