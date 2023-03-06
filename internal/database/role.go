@@ -10,9 +10,14 @@ import (
 
 // EnsureRole ensures that the base roles are present
 func (repository *PostgresRepository) EnsureRole() error {
+
 	baseRoles := []string{"superadmin", "admin", "user", "guest"}
 	for _, name := range baseRoles {
-		r, _ := repository.GetRoleByName(context.Background(), name)
+
+		r, err := repository.GetRoleByName(context.Background(), name)
+		if err != nil {
+			return err
+		}
 
 		if r != nil {
 			continue
@@ -34,6 +39,8 @@ func (repository *PostgresRepository) EnsureRole() error {
 		if err != nil {
 			return err
 		}
+
+		log.Printf("Role %s created", name)
 	}
 
 	return nil
@@ -55,7 +62,7 @@ func (repository *PostgresRepository) InsertRole(ctx context.Context, role *mode
 		return &models.Role{}, err
 	}
 
-	return &r, nil
+	return r, nil
 }
 
 // GetRoleByName returns a role by name
@@ -77,7 +84,7 @@ func (repository *PostgresRepository) GetRoleByName(ctx context.Context, name st
 		}
 	}()
 
-	var role models.Role
+	var role *models.Role
 
 	for rows.Next() {
 		role, err = ScanRowRole(rows)
@@ -90,7 +97,7 @@ func (repository *PostgresRepository) GetRoleByName(ctx context.Context, name st
 		return nil, err
 	}
 
-	return &role, nil
+	return role, nil
 }
 
 // GetRoleById returns a role by id
@@ -112,7 +119,7 @@ func (repository *PostgresRepository) GetRoleById(ctx context.Context, id string
 		}
 	}()
 
-	var role models.Role
+	var role *models.Role
 
 	for rows.Next() {
 		role, err = ScanRowRole(rows)
@@ -125,7 +132,7 @@ func (repository *PostgresRepository) GetRoleById(ctx context.Context, id string
 		return nil, err
 	}
 
-	return &role, nil
+	return role, nil
 }
 
 // UpdateRole updates a role
@@ -145,7 +152,7 @@ func (repository *PostgresRepository) UpdateRole(ctx context.Context, role *mode
 		return &models.Role{}, err
 	}
 
-	return &r, nil
+	return r, nil
 }
 
 // DeleteRole deletes a role
@@ -163,7 +170,7 @@ func (repository *PostgresRepository) DeleteRole(ctx context.Context, id string)
 		return &models.Role{}, err
 	}
 
-	return &r, nil
+	return r, nil
 }
 
 // ListRole returns a list of roles
@@ -191,7 +198,7 @@ func (repository *PostgresRepository) ListRole(ctx context.Context) ([]*models.R
 			return nil, err
 		}
 
-		roles = append(roles, &role)
+		roles = append(roles, role)
 	}
 
 	if err = rows.Err(); err != nil {

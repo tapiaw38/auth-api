@@ -131,6 +131,12 @@ func (b *Broker) Serve(binder func(s Server, e *gin.Engine)) {
 		panic(err)
 	}
 
+	// Ensure the base roles
+	err = rep.EnsureRole()
+	if err != nil {
+		log.Println(err)
+	}
+
 	// Set the repository
 	repository.SetRepository(rep)
 

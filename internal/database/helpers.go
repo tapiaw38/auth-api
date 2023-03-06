@@ -12,7 +12,7 @@ type scanner interface {
 }
 
 // ScanRowUser scans a row into a User struct
-func ScanRowUser(s scanner) (models.User, error) {
+func ScanRowUser(s scanner) (*models.User, error) {
 	u := models.User{}
 	var lastName, picture, phoneNumber, address sql.NullString
 	var isActive, verifiedEmail sql.NullBool
@@ -33,7 +33,7 @@ func ScanRowUser(s scanner) (models.User, error) {
 		&u.UpdatedAt,
 	)
 	if err != nil {
-		return u, err
+		return &u, err
 	}
 
 	u.LastName = lastName.String
@@ -41,10 +41,10 @@ func ScanRowUser(s scanner) (models.User, error) {
 	u.PhoneNumber = phoneNumber.String
 	u.Address = address.String
 
-	return u, nil
+	return &u, nil
 }
 
-func ScanRowUserResponse(s scanner) (models.UserResponse, error) {
+func ScanRowUserResponse(s scanner) (*models.UserResponse, error) {
 	u := models.UserResponse{}
 	var lastName, picture, phoneNumber, address sql.NullString
 	var isActive, verifiedEmail sql.NullBool
@@ -65,7 +65,7 @@ func ScanRowUserResponse(s scanner) (models.UserResponse, error) {
 		&updatedAt,
 	)
 	if err != nil {
-		return u, err
+		return nil, err
 	}
 
 	u.LastName = lastName.String
@@ -77,11 +77,11 @@ func ScanRowUserResponse(s scanner) (models.UserResponse, error) {
 	u.CreatedAt = createdAt.Time
 	u.UpdatedAt = updatedAt.Time
 
-	return u, nil
+	return &u, nil
 }
 
 // ScanRowRole scans a row into a Role struct
-func ScanRowRole(s scanner) (models.Role, error) {
+func ScanRowRole(s scanner) (*models.Role, error) {
 	r := models.Role{}
 
 	err := s.Scan(
@@ -89,14 +89,14 @@ func ScanRowRole(s scanner) (models.Role, error) {
 		&r.Name,
 	)
 	if err != nil {
-		return r, err
+		return nil, err
 	}
 
-	return r, nil
+	return &r, nil
 }
 
 // ScanRowUserRole scans a row into a UserRole struct
-func ScanRowUserRole(s scanner) (models.UserRole, error) {
+func ScanRowUserRole(s scanner) (*models.UserRole, error) {
 	ur := models.UserRole{}
 
 	err := s.Scan(
@@ -104,8 +104,8 @@ func ScanRowUserRole(s scanner) (models.UserRole, error) {
 		&ur.RoleId,
 	)
 	if err != nil {
-		return ur, err
+		return nil, err
 	}
 
-	return ur, nil
+	return &ur, nil
 }

@@ -92,6 +92,13 @@ func SignUpHandler(s server.Server) gin.HandlerFunc {
 			return
 		}
 
+		_, err = AddRoleToUser(c.Request.Context(), u.Id, "user")
+		if err != nil {
+			response := NewResponse(Error, err.Error(), nil)
+			ResponseWithJson(c, http.StatusInternalServerError, response)
+			return
+		}
+
 		signUpResponse := SignUpResponse{
 			Id:    u.Id,
 			Email: u.Email,
@@ -132,7 +139,7 @@ func LoginHandler(s server.Server) gin.HandlerFunc {
 			}
 
 			user, err := repository.GetUserByEmailSocial(c.Request.Context(), userInfo.Email)
-			if err != nil || user.Id == "" {
+			if err != nil || user == nil {
 				// If user not registered, register user
 				id, err := ksuid.NewRandom()
 				if err != nil {
@@ -164,6 +171,13 @@ func LoginHandler(s server.Server) gin.HandlerFunc {
 					return
 				}
 
+				user, err := AddRoleToUser(c.Request.Context(), user.Id, "user")
+				if err != nil {
+					response := NewResponse(Error, err.Error(), nil)
+					ResponseWithJson(c, http.StatusInternalServerError, response)
+					return
+				}
+
 				userRq = models.UserResponse{
 					Id:            user.Id,
 					FirstName:     user.FirstName,
@@ -174,12 +188,13 @@ func LoginHandler(s server.Server) gin.HandlerFunc {
 					Address:       user.Address,
 					PhoneNumber:   user.PhoneNumber,
 					IsActive:      user.IsActive,
+					Roles:         user.Roles,
 					VerifiedEmail: user.VerifiedEmail,
 				}
 
 			} else {
 				// If user already registered, update user info
-				if user.Picture == "" {
+				if user.Picture == "" || !user.VerifiedEmail {
 					userUpdate := models.UserResponse{
 						Picture:       userInfo.Picture,
 						IsActive:      user.IsActive,
@@ -258,6 +273,7 @@ func LoginHandler(s server.Server) gin.HandlerFunc {
 				VerifiedEmail: user.VerifiedEmail,
 			}
 		}
+
 		// Generate JWT token
 		claims := models.AppClaims{
 			UserId: userRq.Id,

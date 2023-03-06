@@ -34,7 +34,7 @@ func (repository *PostgresRepository) InsertUser(ctx context.Context, user *mode
 		return &models.UserResponse{}, err
 	}
 
-	return &u, nil
+	return u, nil
 }
 
 // GetUserById returns a user by id
@@ -57,7 +57,7 @@ func (repository *PostgresRepository) GetUserById(ctx context.Context, id string
 		}
 	}()
 
-	var user models.UserResponse
+	var user *models.UserResponse
 
 	for rows.Next() {
 		user, err = ScanRowUserResponse(rows)
@@ -88,7 +88,7 @@ func (repository *PostgresRepository) GetUserById(ctx context.Context, id string
 				return nil, err
 			}
 
-			user.Roles = append(user.Roles, role)
+			user.Roles = append(user.Roles, *role)
 		}
 
 		if err = rows.Err(); err != nil {
@@ -100,7 +100,7 @@ func (repository *PostgresRepository) GetUserById(ctx context.Context, id string
 		return nil, err
 	}
 
-	return &user, nil
+	return user, nil
 }
 
 func (repository *PostgresRepository) GetUserByEmailSocial(ctx context.Context, email string) (*models.UserResponse, error) {
@@ -122,7 +122,7 @@ func (repository *PostgresRepository) GetUserByEmailSocial(ctx context.Context, 
 		}
 	}()
 
-	var user models.UserResponse
+	var user *models.UserResponse
 
 	for rows.Next() {
 		user, err = ScanRowUserResponse(rows)
@@ -153,7 +153,7 @@ func (repository *PostgresRepository) GetUserByEmailSocial(ctx context.Context, 
 				return nil, err
 			}
 
-			user.Roles = append(user.Roles, role)
+			user.Roles = append(user.Roles, *role)
 		}
 
 		if err = rows.Err(); err != nil {
@@ -165,7 +165,7 @@ func (repository *PostgresRepository) GetUserByEmailSocial(ctx context.Context, 
 		return nil, err
 	}
 
-	return &user, nil
+	return user, nil
 }
 
 // GetUserByEmail returns a user by email
@@ -188,7 +188,7 @@ func (repository *PostgresRepository) GetUserByEmail(ctx context.Context, email 
 		}
 	}()
 
-	var user models.User
+	var user *models.User
 
 	for rows.Next() {
 		user, err = ScanRowUser(rows)
@@ -219,7 +219,7 @@ func (repository *PostgresRepository) GetUserByEmail(ctx context.Context, email 
 				return nil, err
 			}
 
-			user.Roles = append(user.Roles, role)
+			user.Roles = append(user.Roles, *role)
 		}
 
 		if err = rows.Err(); err != nil {
@@ -231,7 +231,7 @@ func (repository *PostgresRepository) GetUserByEmail(ctx context.Context, email 
 		return nil, err
 	}
 
-	return &user, nil
+	return user, nil
 }
 
 // UpdateUser updates a user in the database
@@ -282,14 +282,14 @@ func (ur *PostgresRepository) UpdateUser(ctx context.Context, id string, user *m
 			return nil, err
 		}
 
-		u.Roles = append(u.Roles, role)
+		u.Roles = append(u.Roles, *role)
 	}
 
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
-	return &u, nil
+	return u, nil
 }
 
 // PartialUpdateUser updates a user in the database
@@ -358,14 +358,14 @@ func (ur *PostgresRepository) PartialUpdateUser(ctx context.Context, id string, 
 			return nil, err
 		}
 
-		u.Roles = append(u.Roles, role)
+		u.Roles = append(u.Roles, *role)
 	}
 
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
-	return &u, nil
+	return u, nil
 }
 
 // GetUsers returns all users
@@ -419,14 +419,14 @@ func (repository *PostgresRepository) ListUser(ctx context.Context) ([]*models.U
 				return nil, err
 			}
 
-			user.Roles = append(user.Roles, role)
+			user.Roles = append(user.Roles, *role)
 		}
 
 		if err = rows.Err(); err != nil {
 			return nil, err
 		}
 
-		users = append(users, &user)
+		users = append(users, user)
 	}
 
 	if err = rows.Err(); err != nil {
