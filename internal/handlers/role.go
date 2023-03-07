@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -21,15 +22,13 @@ func InsertRoleHandler(s server.Server) gin.HandlerFunc {
 
 		err := c.BindJSON(&request)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusBadRequest, response)
+			HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		id, err := ksuid.NewRandom()
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -40,13 +39,11 @@ func InsertRoleHandler(s server.Server) gin.HandlerFunc {
 
 		rl, err := repository.InsertRole(c.Request.Context(), &role)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		response := NewResponse(Message, "ok", rl)
-		ResponseWithJson(c, http.StatusCreated, response)
+		HandleSuccess(c, http.StatusOK, "ok", rl)
 	}
 }
 
@@ -55,20 +52,17 @@ func GetRoleByNameHandler(s server.Server) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
 		if name == "" {
-			response := NewResponse(Error, "name is required", nil)
-			ResponseWithJson(c, http.StatusBadRequest, response)
+			HandleError(c, http.StatusBadRequest, errors.New("name is required"))
 			return
 		}
 
 		role, err := repository.GetRoleByName(c.Request.Context(), name)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		response := NewResponse(Message, "ok", role)
-		ResponseWithJson(c, http.StatusOK, response)
+		HandleSuccess(c, http.StatusOK, "ok", role)
 	}
 }
 
@@ -77,20 +71,17 @@ func GetRoleByIdHandler(s server.Server) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		if id == "" {
-			response := NewResponse(Error, "id is required", nil)
-			ResponseWithJson(c, http.StatusBadRequest, response)
+			HandleError(c, http.StatusBadRequest, errors.New("id is required"))
 			return
 		}
 
 		role, err := repository.GetRoleById(c.Request.Context(), id)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		response := NewResponse(Message, "ok", role)
-		ResponseWithJson(c, http.StatusOK, response)
+		HandleSuccess(c, http.StatusOK, "ok", role)
 	}
 }
 
@@ -101,15 +92,13 @@ func UpdateRoleHandler(s server.Server) gin.HandlerFunc {
 
 		err := c.BindJSON(&request)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusBadRequest, response)
+			HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		id := c.Param("id")
 		if id == "" {
-			response := NewResponse(Error, "id is required", nil)
-			ResponseWithJson(c, http.StatusBadRequest, response)
+			HandleError(c, http.StatusBadRequest, errors.New("id is required"))
 			return
 		}
 
@@ -120,13 +109,11 @@ func UpdateRoleHandler(s server.Server) gin.HandlerFunc {
 
 		rl, err := repository.UpdateRole(c.Request.Context(), &role)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		response := NewResponse(Message, "ok", rl)
-		ResponseWithJson(c, http.StatusOK, response)
+		HandleSuccess(c, http.StatusOK, "ok", rl)
 	}
 }
 
@@ -135,20 +122,17 @@ func DeleteRoleHandler(s server.Server) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		if id == "" {
-			response := NewResponse(Error, "id is required", nil)
-			ResponseWithJson(c, http.StatusBadRequest, response)
+			HandleError(c, http.StatusBadRequest, errors.New("id is required"))
 			return
 		}
 
 		role, err := repository.DeleteRole(c.Request.Context(), id)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		response := NewResponse(Message, "ok", role)
-		ResponseWithJson(c, http.StatusOK, response)
+		HandleSuccess(c, http.StatusOK, "ok", role)
 	}
 }
 
@@ -157,12 +141,10 @@ func ListRoleHandler(s server.Server) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		roles, err := repository.ListRole(c.Request.Context())
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		response := NewResponse(Message, "ok", roles)
-		ResponseWithJson(c, http.StatusOK, response)
+		HandleSuccess(c, http.StatusOK, "ok", roles)
 	}
 }

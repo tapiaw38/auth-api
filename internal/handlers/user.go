@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"time"
@@ -53,28 +54,24 @@ func SignUpHandler(s server.Server) gin.HandlerFunc {
 
 		err := c.BindJSON(&request)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusBadRequest, response)
+			HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if !utils.ValidateEmail(request.Email) {
-			response := NewResponse(Error, "Invalid email", nil)
-			ResponseWithJson(c, http.StatusBadRequest, response)
+			HandleError(c, http.StatusBadRequest, errors.New("invalid email"))
 			return
 		}
 
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), HASH_COST)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		id, err := ksuid.NewRandom()
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -93,41 +90,29 @@ func SignUpHandler(s server.Server) gin.HandlerFunc {
 
 		u, err := repository.InsertUser(c.Request.Context(), &user)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		// Add default role to user
 		_, err = AddRoleToUser(c.Request.Context(), u.Id, "user")
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		// Generate token and save it
 		token, err := GenerateToken(u)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		// Send email verification
-		channel := make(chan error)
-		subjet := "Bienvenido a Mi Tur"
-
-		variables := map[string]interface{}{
-			"name": u.FirstName + " " + u.LastName,
-			"link": s.Config().Host + "/auth/verify-email?token=" + token,
-		}
-
-		go s.Mail().SendEmail(u.Email, subjet, "email_verification", variables, channel)
-
-		err = <-channel
+		// Send verification email
+		err = SendEmailVerification(s, u, token)
 		if err != nil {
-			log.Println(err)
+			HandleError(c, http.StatusInternalServerError, err)
+			return
 		}
 
 		// Send response
@@ -136,8 +121,7 @@ func SignUpHandler(s server.Server) gin.HandlerFunc {
 			Email: u.Email,
 		}
 
-		response := NewResponse(Message, "ok", signUpResponse)
-		ResponseWithJson(c, http.StatusCreated, response)
+		HandleSuccess(c, http.StatusCreated, "ok", signUpResponse)
 	}
 }
 
@@ -147,15 +131,12 @@ func VerifiedEmailHandler(s server.Server) gin.HandlerFunc {
 
 		user, err := repository.GetUserByToken(c.Request.Context(), token)
 		if err != nil {
-			log.Println("Error getting user by token: ", err)
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusBadRequest, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		if time.Now().After(user.TokenExpiry) {
-			response := NewResponse(Error, "Token expired", nil)
-			ResponseWithJson(c, http.StatusBadRequest, response)
+			HandleError(c, http.StatusUnauthorized, errors.New("token expired"))
 			return
 		}
 
@@ -163,9 +144,7 @@ func VerifiedEmailHandler(s server.Server) gin.HandlerFunc {
 
 		_, err = repository.UpdateUser(c.Request.Context(), user.Id, user)
 		if err != nil {
-			log.Println("Error updating user: ", err)
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -181,145 +160,36 @@ func LoginHandler(s server.Server) gin.HandlerFunc {
 
 		err := c.BindJSON(&request)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		if request.SsoType == "google" {
 			// Login with google
-			token, err := s.Google().ExchangeCode(c.Request.Context(), request.Code)
+			user, err := HandleGoogleLogin(c, s, &request)
 			if err != nil {
-				response := NewResponse(Error, err.Error(), nil)
-				ResponseWithJson(c, http.StatusBadRequest, response)
+				HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 
-			userInfo, err := s.Google().GetUserInfo(c.Request.Context(), token)
-			if err != nil {
-				response := NewResponse(Error, err.Error(), nil)
-				ResponseWithJson(c, http.StatusBadRequest, response)
-				return
-			}
-
-			user, err := repository.GetUserByEmailSocial(c.Request.Context(), userInfo.Email)
-			if err != nil || user == nil {
-				// If user not registered, register user
-				id, err := ksuid.NewRandom()
-				if err != nil {
-					response := NewResponse(Error, err.Error(), nil)
-					ResponseWithJson(c, http.StatusInternalServerError, response)
-					return
-				}
-
-				userInsert := models.User{
-					Id:            id.String(),
-					FirstName:     userInfo.FirstName,
-					LastName:      userInfo.LastName,
-					Username:      utils.RandomString(30),
-					Email:         userInfo.Email,
-					Password:      "",
-					Picture:       userInfo.Picture,
-					Address:       "",
-					PhoneNumber:   "",
-					IsActive:      true,
-					VerifiedEmail: userInfo.VerifiedEmail,
-					CreatedAt:     time.Now(),
-					UpdatedAt:     time.Now(),
-				}
-
-				user, err = repository.InsertUser(c.Request.Context(), &userInsert)
-				if err != nil {
-					response := NewResponse(Error, err.Error(), nil)
-					ResponseWithJson(c, http.StatusInternalServerError, response)
-					return
-				}
-
-				user, err := AddRoleToUser(c.Request.Context(), user.Id, "user")
-				if err != nil {
-					response := NewResponse(Error, err.Error(), nil)
-					ResponseWithJson(c, http.StatusInternalServerError, response)
-					return
-				}
-
-				userRq = models.UserResponse{
-					Id:            user.Id,
-					FirstName:     user.FirstName,
-					LastName:      user.LastName,
-					Username:      user.Username,
-					Email:         user.Email,
-					Picture:       user.Picture,
-					Address:       user.Address,
-					PhoneNumber:   user.PhoneNumber,
-					IsActive:      user.IsActive,
-					Roles:         user.Roles,
-					VerifiedEmail: user.VerifiedEmail,
-				}
-
-			} else {
-				// If user already registered, update user info
-				if user.Picture == "" || !user.VerifiedEmail {
-					userUpdate := models.UserResponse{
-						Picture:       userInfo.Picture,
-						IsActive:      user.IsActive,
-						VerifiedEmail: userInfo.VerifiedEmail,
-					}
-
-					user, err = repository.PartialUpdateUser(c.Request.Context(), user.Id, &userUpdate)
-					if err != nil {
-						response := NewResponse(Error, err.Error(), nil)
-						ResponseWithJson(c, http.StatusInternalServerError, response)
-						return
-					}
-
-					userRq = models.UserResponse{
-						Id:            user.Id,
-						FirstName:     user.FirstName,
-						LastName:      user.LastName,
-						Username:      user.Username,
-						Email:         user.Email,
-						Picture:       user.Picture,
-						Address:       user.Address,
-						PhoneNumber:   user.PhoneNumber,
-						Roles:         user.Roles,
-						IsActive:      user.IsActive,
-						VerifiedEmail: user.VerifiedEmail,
-					}
-				} else {
-
-					userRq = models.UserResponse{
-						Id:            user.Id,
-						FirstName:     user.FirstName,
-						LastName:      user.LastName,
-						Username:      user.Username,
-						Email:         user.Email,
-						Picture:       user.Picture,
-						Address:       user.Address,
-						PhoneNumber:   user.PhoneNumber,
-						Roles:         user.Roles,
-						IsActive:      user.IsActive,
-						VerifiedEmail: user.VerifiedEmail,
-					}
-				}
+			userRq = models.UserResponse{
+				Id:            user.Id,
+				FirstName:     user.FirstName,
+				LastName:      user.LastName,
+				Username:      user.Username,
+				Email:         user.Email,
+				Picture:       user.Picture,
+				Address:       user.Address,
+				PhoneNumber:   user.PhoneNumber,
+				Roles:         user.Roles,
+				IsActive:      user.IsActive,
+				VerifiedEmail: user.VerifiedEmail,
 			}
 		} else {
 			// Login with email and password
-			user, err := repository.GetUserByEmail(c.Request.Context(), request.Email)
+			user, err := HandleEmailAndPasswordLogin(c, s, &request)
 			if err != nil {
-				response := NewResponse(Error, err.Error(), nil)
-				ResponseWithJson(c, http.StatusInternalServerError, response)
-				return
-			}
-
-			if user == nil {
-				response := NewResponse(Error, "Invalid Credentials", nil)
-				ResponseWithJson(c, http.StatusUnauthorized, response)
-				return
-			}
-
-			if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(request.Password)); err != nil {
-				response := NewResponse(Error, "Invalid Credentials", nil)
-				ResponseWithJson(c, http.StatusUnauthorized, response)
+				HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 
@@ -350,8 +220,7 @@ func LoginHandler(s server.Server) gin.HandlerFunc {
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 		tokenString, err := token.SignedString([]byte(s.Config().JWTSecret))
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -360,8 +229,7 @@ func LoginHandler(s server.Server) gin.HandlerFunc {
 			Token: tokenString,
 		}
 
-		response := NewResponse(Message, "ok", loginResponse)
-		ResponseWithJson(c, http.StatusOK, response)
+		HandleSuccess(c, http.StatusOK, "ok", loginResponse)
 	}
 }
 
@@ -374,8 +242,7 @@ func MeHandler(s server.Server) gin.HandlerFunc {
 			return []byte(s.Config().JWTSecret), nil
 		})
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusUnauthorized, response)
+			HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
@@ -389,8 +256,7 @@ func MeHandler(s server.Server) gin.HandlerFunc {
 			if user == nil {
 				user, err := repository.GetUserById(c.Request.Context(), claims.UserId)
 				if err != nil {
-					response := NewResponse(Error, err.Error(), nil)
-					ResponseWithJson(c, http.StatusInternalServerError, response)
+					HandleError(c, http.StatusInternalServerError, err)
 					return
 				}
 
@@ -399,17 +265,14 @@ func MeHandler(s server.Server) gin.HandlerFunc {
 					log.Println(err)
 				}
 
-				response := NewResponse(Message, "ok", user)
-				ResponseWithJson(c, http.StatusCreated, response)
+				HandleSuccess(c, http.StatusOK, "ok", user)
 				return
 			}
-			response := NewResponse(Message, "ok", user)
-			ResponseWithJson(c, http.StatusCreated, response)
+			HandleSuccess(c, http.StatusOK, "ok", user)
 			return
 		}
 
-		response := NewResponse(Error, "Invalid Token", nil)
-		ResponseWithJson(c, http.StatusInternalServerError, response)
+		HandleError(c, http.StatusUnauthorized, errors.New("invalid token"))
 	}
 }
 
@@ -422,8 +285,7 @@ func UpdateUserHandler(s server.Server) gin.HandlerFunc {
 			return []byte(s.Config().JWTSecret), nil
 		})
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusUnauthorized, response)
+			HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
@@ -432,23 +294,19 @@ func UpdateUserHandler(s server.Server) gin.HandlerFunc {
 
 			err := c.BindJSON(&request)
 			if err != nil {
-				response := NewResponse(Error, err.Error(), nil)
-				ResponseWithJson(c, http.StatusInternalServerError, response)
+				HandleError(c, http.StatusBadRequest, err)
 				return
 			}
 
 			user, err := repository.UpdateUser(c.Request.Context(), claims.UserId, &request)
 			if err != nil {
-				response := NewResponse(Error, err.Error(), nil)
-				ResponseWithJson(c, http.StatusInternalServerError, response)
+				HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 
-			response := NewResponse(Message, "ok", user)
-			ResponseWithJson(c, http.StatusCreated, response)
+			HandleSuccess(c, http.StatusOK, "ok", user)
 		}
-		response := NewResponse(Error, "Invalid Token", nil)
-		ResponseWithJson(c, http.StatusInternalServerError, response)
+		HandleError(c, http.StatusUnauthorized, errors.New("invalid token"))
 	}
 }
 
@@ -458,8 +316,7 @@ func UploadPictureHandler(s server.Server) gin.HandlerFunc {
 
 		id := c.Param("id")
 		if id == "" {
-			response := NewResponse(Error, "Invalid id", nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusBadRequest, errors.New("invalid id"))
 			return
 		}
 
@@ -467,15 +324,13 @@ func UploadPictureHandler(s server.Server) gin.HandlerFunc {
 
 		err := c.Request.ParseMultipartForm(maxSize)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
 		file, fileHeader, err := c.Request.FormFile("picture")
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -484,8 +339,7 @@ func UploadPictureHandler(s server.Server) gin.HandlerFunc {
 		// reused if we're uploading many files
 		fileName, err := s.S3().UploadFileToS3(file, fileHeader, id)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -493,8 +347,7 @@ func UploadPictureHandler(s server.Server) gin.HandlerFunc {
 
 		user, err := repository.GetUserById(c.Request.Context(), id)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -502,13 +355,11 @@ func UploadPictureHandler(s server.Server) gin.HandlerFunc {
 
 		u, err := repository.PartialUpdateUser(c.Request.Context(), id, user)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		response := NewResponse(Message, "ok", u)
-		ResponseWithJson(c, http.StatusOK, response)
+		HandleSuccess(c, http.StatusOK, "ok", u)
 	}
 }
 
@@ -523,8 +374,7 @@ func ListUserHandler(s server.Server) gin.HandlerFunc {
 		if users == nil {
 			users, err := repository.ListUser(c.Request.Context())
 			if err != nil {
-				response := NewResponse(Error, err.Error(), nil)
-				ResponseWithJson(c, http.StatusInternalServerError, response)
+				HandleError(c, http.StatusInternalServerError, err)
 				return
 			}
 
@@ -533,12 +383,10 @@ func ListUserHandler(s server.Server) gin.HandlerFunc {
 				log.Println(err)
 			}
 
-			response := NewResponse(Message, "ok", users)
-			ResponseWithJson(c, http.StatusCreated, response)
+			HandleSuccess(c, http.StatusOK, "ok", users)
 			return
 		}
 
-		response := NewResponse(Message, "ok", users)
-		ResponseWithJson(c, http.StatusCreated, response)
+		HandleSuccess(c, http.StatusOK, "ok", users)
 	}
 }

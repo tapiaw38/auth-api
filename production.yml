@@ -54,6 +54,8 @@ services:
       - ${PORT}:8000
     depends_on:
       - database
+      - redis
+      - caddy
     networks:
       - fullstack
     env_file:

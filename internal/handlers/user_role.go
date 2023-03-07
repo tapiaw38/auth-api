@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -20,12 +19,9 @@ func InsertUserRole(s server.Server) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var request = UserRoleRequest{}
 
-		log.Println("InsertUserRole", request)
-
 		err := c.BindJSON(&request)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusBadRequest, response)
+			HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -36,13 +32,11 @@ func InsertUserRole(s server.Server) gin.HandlerFunc {
 
 		err = repository.InsertUserRole(c.Request.Context(), &userRole)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		response := NewResponse(Message, "ok", nil)
-		ResponseWithJson(c, http.StatusCreated, response)
+		HandleSuccess(c, http.StatusOK, "ok", nil)
 	}
 }
 
@@ -53,8 +47,7 @@ func DeleteUserRole(s server.Server) gin.HandlerFunc {
 
 		err := c.BindJSON(&request)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusBadRequest, response)
+			HandleError(c, http.StatusBadRequest, err)
 			return
 		}
 
@@ -65,12 +58,10 @@ func DeleteUserRole(s server.Server) gin.HandlerFunc {
 
 		err = repository.DeleteUserRole(c.Request.Context(), &userRole)
 		if err != nil {
-			response := NewResponse(Error, err.Error(), nil)
-			ResponseWithJson(c, http.StatusInternalServerError, response)
+			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		response := NewResponse(Message, "ok", nil)
-		ResponseWithJson(c, http.StatusOK, response)
+		HandleSuccess(c, http.StatusOK, "ok", nil)
 	}
 }
