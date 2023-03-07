@@ -13,6 +13,7 @@ func BinderRoutes(s server.Server, router *gin.Engine) {
 	authRoute := router.Group("/auth/")
 	authRoute.POST("signup", handlers.SignUpHandler(s))
 	authRoute.POST("login", handlers.LoginHandler(s))
+	authRoute.GET("verify-email", handlers.VerifiedEmailHandler(s))
 
 	// mount the middleware
 	router.Use(middleware.CheckAuthMiddleware(s))

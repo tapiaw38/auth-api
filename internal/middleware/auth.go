@@ -14,6 +14,7 @@ var (
 	NO_AUTH_NEEDED = []string{
 		"login",
 		"signup",
+		"verify-email",
 	}
 )
 

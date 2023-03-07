@@ -148,6 +148,7 @@ func (b *Broker) Serve(binder func(s Server, e *gin.Engine)) {
 		gin.SetMode(gin.ReleaseMode)
 	} else {
 		gin.SetMode(gin.DebugMode)
+		b.config.Host = "http://localhost:" + b.config.Port
 	}
 
 	// Create a new repository
@@ -180,6 +181,7 @@ func (b *Broker) Serve(binder func(s Server, e *gin.Engine)) {
 	config.AllowCredentials = true
 	config.AllowMethods = []string{"*"}
 	config.AllowHeaders = []string{"*"}
+	config.ExposeHeaders = []string{"*"}
 
 	// Use the cors
 	b.engine.Use(cors.New(config))

@@ -58,6 +58,12 @@ func SignUpHandler(s server.Server) gin.HandlerFunc {
 			return
 		}
 
+		if !utils.ValidateEmail(request.Email) {
+			response := NewResponse(Error, "Invalid email", nil)
+			ResponseWithJson(c, http.StatusBadRequest, response)
+			return
+		}
+
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), HASH_COST)
 		if err != nil {
 			response := NewResponse(Error, err.Error(), nil)
@@ -100,13 +106,21 @@ func SignUpHandler(s server.Server) gin.HandlerFunc {
 			return
 		}
 
+		// Generate token and save it
+		token, err := GenerateToken(u)
+		if err != nil {
+			response := NewResponse(Error, err.Error(), nil)
+			ResponseWithJson(c, http.StatusInternalServerError, response)
+			return
+		}
+
 		// Send email verification
 		channel := make(chan error)
 		subjet := "Bienvenido a Mi Tur"
 
 		variables := map[string]interface{}{
 			"name": u.FirstName + " " + u.LastName,
-			"link": s.Config().Host + "/auth/verify-email/?id=" + u.Id,
+			"link": s.Config().Host + "/auth/verify-email?token=" + token,
 		}
 
 		go s.Mail().SendEmail(u.Email, subjet, "email_verification", variables, channel)
@@ -124,6 +138,38 @@ func SignUpHandler(s server.Server) gin.HandlerFunc {
 
 		response := NewResponse(Message, "ok", signUpResponse)
 		ResponseWithJson(c, http.StatusCreated, response)
+	}
+}
+
+func VerifiedEmailHandler(s server.Server) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := c.Query("token")
+
+		user, err := repository.GetUserByToken(c.Request.Context(), token)
+		if err != nil {
+			log.Println("Error getting user by token: ", err)
+			response := NewResponse(Error, err.Error(), nil)
+			ResponseWithJson(c, http.StatusBadRequest, response)
+			return
+		}
+
+		if time.Now().After(user.TokenExpiry) {
+			response := NewResponse(Error, "Token expired", nil)
+			ResponseWithJson(c, http.StatusBadRequest, response)
+			return
+		}
+
+		user.VerifiedEmail = true
+
+		_, err = repository.UpdateUser(c.Request.Context(), user.Id, user)
+		if err != nil {
+			log.Println("Error updating user: ", err)
+			response := NewResponse(Error, err.Error(), nil)
+			ResponseWithJson(c, http.StatusInternalServerError, response)
+			return
+		}
+
+		c.Redirect(http.StatusMovedPermanently, s.Config().FrontendURL+"/auth/login")
 	}
 }
 

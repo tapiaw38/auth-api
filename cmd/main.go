@@ -48,9 +48,6 @@ func main() {
 	EMAIL_HOST_PASSWORD := os.Getenv("EMAIL_HOST_PASSWORD")
 
 	HOST := os.Getenv("HOST")
-	if HOST == "" {
-		HOST = "http://localhost:" + PORT
-	}
 
 	s, err := server.NewServer(&server.Config{
 		GinMode:              GIN_MODE,

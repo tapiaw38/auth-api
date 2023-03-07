@@ -14,6 +14,10 @@ func GetUserById(ctx context.Context, id string) (*models.UserResponse, error) {
 	return implementation.GetUserById(ctx, id)
 }
 
+func GetUserByToken(ctx context.Context, token string) (*models.UserResponse, error) {
+	return implementation.GetUserByToken(ctx, token)
+}
+
 func GetUserByEmailSocial(ctx context.Context, email string) (*models.UserResponse, error) {
 	return implementation.GetUserByEmailSocial(ctx, email)
 }

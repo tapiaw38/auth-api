@@ -16,6 +16,7 @@ func ScanRowUser(s scanner) (*models.User, error) {
 	u := models.User{}
 	var lastName, picture, phoneNumber, address sql.NullString
 	var isActive, verifiedEmail sql.NullBool
+	var token sql.NullString
 
 	err := s.Scan(
 		&u.Id,
@@ -29,6 +30,8 @@ func ScanRowUser(s scanner) (*models.User, error) {
 		&address,
 		&isActive,
 		&verifiedEmail,
+		&token,
+		&u.TokenExpiry,
 		&u.CreatedAt,
 		&u.UpdatedAt,
 	)
@@ -40,6 +43,8 @@ func ScanRowUser(s scanner) (*models.User, error) {
 	u.Picture = picture.String
 	u.PhoneNumber = phoneNumber.String
 	u.Address = address.String
+	u.IsActive = isActive.Bool
+	u.VerifiedEmail = verifiedEmail.Bool
 
 	return &u, nil
 }
@@ -48,7 +53,7 @@ func ScanRowUserResponse(s scanner) (*models.UserResponse, error) {
 	u := models.UserResponse{}
 	var lastName, picture, phoneNumber, address sql.NullString
 	var isActive, verifiedEmail sql.NullBool
-	var createdAt, updatedAt sql.NullTime
+	var token sql.NullString
 
 	err := s.Scan(
 		&u.Id,
@@ -61,8 +66,10 @@ func ScanRowUserResponse(s scanner) (*models.UserResponse, error) {
 		&address,
 		&isActive,
 		&verifiedEmail,
-		&createdAt,
-		&updatedAt,
+		&token,
+		&u.TokenExpiry,
+		&u.CreatedAt,
+		&u.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -74,8 +81,7 @@ func ScanRowUserResponse(s scanner) (*models.UserResponse, error) {
 	u.Address = address.String
 	u.IsActive = isActive.Bool
 	u.VerifiedEmail = verifiedEmail.Bool
-	u.CreatedAt = createdAt.Time
-	u.UpdatedAt = updatedAt.Time
+	u.Token = token.String
 
 	return &u, nil
 }

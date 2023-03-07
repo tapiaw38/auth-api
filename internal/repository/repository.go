@@ -11,6 +11,7 @@ type Repository interface {
 	// User
 	InsertUser(ctx context.Context, user *models.User) (*models.UserResponse, error)
 	GetUserById(ctx context.Context, id string) (*models.UserResponse, error)
+	GetUserByToken(ctx context.Context, token string) (*models.UserResponse, error)
 	GetUserByEmailSocial(ctx context.Context, email string) (*models.UserResponse, error)
 	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
 	UpdateUser(ctx context.Context, id string, user *models.UserResponse) (*models.UserResponse, error)

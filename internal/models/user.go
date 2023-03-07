@@ -17,6 +17,8 @@ type User struct {
 	Address       string    `json:"address,omitempty"`
 	IsActive      bool      `json:"is_active,omitempty"`
 	VerifiedEmail bool      `json:"verified_email,omitempty"`
+	Token         string    `json:"token,omitempty"`
+	TokenExpiry   time.Time `json:"token_expiry,omitempty"`
 	Roles         []Role    `json:"roles,omitempty"`
 	CreatedAt     time.Time `json:"created_at,omitempty"`
 	UpdatedAt     time.Time `json:"updated_at,omitempty"`
@@ -34,6 +36,8 @@ type UserResponse struct {
 	Address       string    `json:"address"`
 	IsActive      bool      `json:"is_active,omitempty"`
 	VerifiedEmail bool      `json:"verified_email,omitempty"`
+	Token         string    `json:"token,omitempty"`
+	TokenExpiry   time.Time `json:"token_expiry,omitempty"`
 	Roles         []Role    `json:"roles"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
