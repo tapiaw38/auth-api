@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 	"github.com/segmentio/ksuid"
 	"github.com/tapiaw38/auth-api/internal/models"
 	"github.com/tapiaw38/auth-api/internal/repository"
@@ -178,4 +179,20 @@ func HandleEmailAndPasswordLogin(c *gin.Context, s server.Server, request *SignU
 	}
 
 	return user, nil
+}
+
+// DecodeToten decodes a user token
+func DecodeToken(tokenString, secret string) (*models.AppClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &models.AppClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(secret), nil
+	})
+	if err != nil {
+		return nil, errors.New("invalid token")
+	}
+
+	if claims, ok := token.Claims.(*models.AppClaims); ok && token.Valid {
+		return claims, nil
+	} else {
+		return nil, errors.New("invalid token")
+	}
 }

@@ -238,41 +238,34 @@ func MeHandler(s server.Server) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := c.GetHeader("Authorization")
 
-		token, err := jwt.ParseWithClaims(tokenString, &models.AppClaims{}, func(token *jwt.Token) (interface{}, error) {
-			return []byte(s.Config().JWTSecret), nil
-		})
+		claims, err := DecodeToken(tokenString, s.Config().JWTSecret)
 		if err != nil {
 			HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
-		if claims, ok := token.Claims.(*models.AppClaims); ok && token.Valid {
+		user, err := s.Redis().GetValue(claims.UserId)
+		if err != nil {
+			log.Println(err)
+		}
 
-			user, err := s.Redis().GetValue(claims.UserId)
+		if user == nil {
+			user, err := repository.GetUserById(c.Request.Context(), claims.UserId)
+			if err != nil {
+				HandleError(c, http.StatusInternalServerError, err)
+				return
+			}
+
+			err = s.Redis().SetValue(user.Id, user)
 			if err != nil {
 				log.Println(err)
 			}
 
-			if user == nil {
-				user, err := repository.GetUserById(c.Request.Context(), claims.UserId)
-				if err != nil {
-					HandleError(c, http.StatusInternalServerError, err)
-					return
-				}
-
-				err = s.Redis().SetValue(user.Id, user)
-				if err != nil {
-					log.Println(err)
-				}
-
-				HandleSuccess(c, http.StatusOK, "ok", user)
-				return
-			}
 			HandleSuccess(c, http.StatusOK, "ok", user)
 			return
 		}
 
-		HandleError(c, http.StatusUnauthorized, errors.New("invalid token"))
+		HandleSuccess(c, http.StatusOK, "ok", user)
 	}
 }
 
@@ -281,32 +274,27 @@ func UpdateUserHandler(s server.Server) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := c.GetHeader("Authorization")
 
-		token, err := jwt.ParseWithClaims(tokenString, &models.AppClaims{}, func(token *jwt.Token) (interface{}, error) {
-			return []byte(s.Config().JWTSecret), nil
-		})
+		claims, err := DecodeToken(tokenString, s.Config().JWTSecret)
 		if err != nil {
 			HandleError(c, http.StatusUnauthorized, err)
 			return
 		}
 
-		if claims, ok := token.Claims.(*models.AppClaims); ok && token.Valid {
-			var request = models.UserResponse{}
+		var request = models.UserResponse{}
 
-			err := c.BindJSON(&request)
-			if err != nil {
-				HandleError(c, http.StatusBadRequest, err)
-				return
-			}
-
-			user, err := repository.UpdateUser(c.Request.Context(), claims.UserId, &request)
-			if err != nil {
-				HandleError(c, http.StatusInternalServerError, err)
-				return
-			}
-
-			HandleSuccess(c, http.StatusOK, "ok", user)
+		err = c.BindJSON(&request)
+		if err != nil {
+			HandleError(c, http.StatusBadRequest, err)
+			return
 		}
-		HandleError(c, http.StatusUnauthorized, errors.New("invalid token"))
+
+		user, err := repository.UpdateUser(c.Request.Context(), claims.UserId, &request)
+		if err != nil {
+			HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		HandleSuccess(c, http.StatusOK, "ok", user)
 	}
 }
 
