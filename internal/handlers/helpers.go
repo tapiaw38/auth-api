@@ -76,17 +76,15 @@ func GenerateToken(user *models.UserResponse) (string, error) {
 
 // SendEmailVerification sends an email verification email to a user
 func SendEmailVerification(s server.Server, u *models.UserResponse, token string) error {
-	channel := make(chan error)
+	// channel := make(chan error)
 	subjet := "Bienvenido a Mi Tur"
 
-	variables := map[string]interface{}{
+	variables := map[string]string{
 		"name": u.FirstName + " " + u.LastName,
 		"link": s.Config().Host + "/auth/verify-email?token=" + token,
 	}
 
-	go s.Mail().SendEmail(u.Email, subjet, "email_verification", variables, channel)
-
-	err := <-channel
+	err := s.Rabbit().Connection().PublishEmailVerification(u.Email, s.Config().EmailHostUser, subjet, variables)
 	if err != nil {
 		return err
 	}

@@ -1,13 +1,11 @@
 package utils
 
 import (
-	"bytes"
 	"crypto/tls"
-	"html/template"
-	"net/mail"
 	"net/smtp"
 )
 
+// EmailSMTPConfig is the configuration for the SMTP server
 type EmailSMTPConfig struct {
 	Host         string
 	Port         string
@@ -15,6 +13,7 @@ type EmailSMTPConfig struct {
 	HostPassword string
 }
 
+// NewEmailSMTPConfig creates a new EmailSMTPConfig
 func NewEmailSMTPConfig(config *EmailSMTPConfig) *EmailSMTPConfig {
 	return &EmailSMTPConfig{
 		Host:         config.Host,
@@ -24,45 +23,8 @@ func NewEmailSMTPConfig(config *EmailSMTPConfig) *EmailSMTPConfig {
 	}
 }
 
-func (conf *EmailSMTPConfig) SendEmail(to, subject, templateName string, variables map[string]interface{}, c chan error) {
-
-	fromEmail := mail.Address{
-		Name:    "Mi Tour",
-		Address: conf.HostUser,
-	}
-	toEmail := mail.Address{
-		Name:    "",
-		Address: to,
-	}
-
-	subjectEmail := subject
-	bodyEmail := variables
-
-	headers := make(map[string]string)
-	headers["From"] = fromEmail.String()
-	headers["To"] = toEmail.String()
-	headers["Subject"] = subjectEmail
-	headers["content-type"] = "text/html; charset=UTF-8"
-
-	message := ""
-
-	for k, v := range headers {
-		message += k + ": " + v + "\r\n"
-	}
-
-	t, err := template.ParseFiles("templates/" + templateName + ".html")
-	if err != nil {
-		c <- err
-	}
-
-	buf := new(bytes.Buffer)
-	err = t.Execute(buf, bodyEmail)
-
-	if err != nil {
-		c <- err
-	}
-
-	message += "\r\n" + buf.String()
+// SendEmail sends an email
+func (conf *EmailSMTPConfig) SendEmail(toEmail, fromEmail, message string) error {
 
 	host := conf.Host
 	servername := conf.Host + ":" + conf.Port
@@ -76,45 +38,45 @@ func (conf *EmailSMTPConfig) SendEmail(to, subject, templateName string, variabl
 
 	conn, err := tls.Dial("tcp", servername, tlsConfig)
 	if err != nil {
-		c <- err
+		return err
 	}
 
 	client, err := smtp.NewClient(conn, host)
 	if err != nil {
-		c <- err
+		return err
 	}
 
 	if err = client.Auth(auth); err != nil {
-		c <- err
+		return err
 	}
 
-	if err = client.Mail(fromEmail.Address); err != nil {
-		c <- err
+	if err = client.Mail(fromEmail); err != nil {
+		return err
 	}
 
-	if err = client.Rcpt(toEmail.Address); err != nil {
-		c <- err
+	if err = client.Rcpt(toEmail); err != nil {
+		return err
 	}
 
 	w, err := client.Data()
 	if err != nil {
-		c <- err
+		return err
 	}
 
 	_, err = w.Write([]byte(message))
 	if err != nil {
-		c <- err
+		return err
 	}
 
 	err = w.Close()
 	if err != nil {
-		c <- err
+		return err
 	}
 
 	err = client.Quit()
 	if err != nil {
-		c <- err
+		return err
 	}
 
-	c <- nil
+	return nil
 }

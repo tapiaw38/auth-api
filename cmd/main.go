@@ -47,6 +47,12 @@ func main() {
 	EMAIL_HOST_USER := os.Getenv("EMAIL_HOST_USER")
 	EMAIL_HOST_PASSWORD := os.Getenv("EMAIL_HOST_PASSWORD")
 
+	// RABBITMQ
+	RABBITMQ_HOST := os.Getenv("RABBITMQ_HOST")
+	RABBITMQ_PORT := os.Getenv("RABBITMQ_PORT")
+	RABBITMQ_USER := os.Getenv("RABBITMQ_USER")
+	RABBITMQ_PASSWORD := os.Getenv("RABBITMQ_PASSWORD")
+
 	HOST := os.Getenv("HOST")
 
 	s, err := server.NewServer(&server.Config{
@@ -72,6 +78,10 @@ func main() {
 		EmailHostPassword:    EMAIL_HOST_PASSWORD,
 		MailgunDomain:        MAILGUN_DOMAIN,
 		MailgunPrivateAPIKey: MAILGUN_API_KEY,
+		RabbitMQHost:         RABBITMQ_HOST,
+		RabbitMQPort:         RABBITMQ_PORT,
+		RabbitMQUser:         RABBITMQ_USER,
+		RabbitMQPassword:     RABBITMQ_PASSWORD,
 	})
 
 	if err != nil {

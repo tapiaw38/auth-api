@@ -28,6 +28,21 @@ services:
       - $PWD/redis.conf:/usr/local/etc/redis/redis.conf
     networks:
       - fullstack
+  rabbitmq:
+    container_name: "rabbitmq"
+    image: rabbitmq:3-management-alpine
+    networks:
+      - fullstack
+    volumes:
+      - ./rabbit-mq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status"]
+      interval: 5s
+      timeout: 15s
+      retries: 5
 # Define volumes
 volumes:
   database_postgres:

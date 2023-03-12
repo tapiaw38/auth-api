@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/tapiaw38/auth-api/internal/cache"
 	"github.com/tapiaw38/auth-api/internal/database"
+	"github.com/tapiaw38/auth-api/internal/rabbitmq"
 	"github.com/tapiaw38/auth-api/internal/repository"
 	"github.com/tapiaw38/auth-api/internal/sso"
 	"github.com/tapiaw38/auth-api/internal/utils"
@@ -38,6 +39,10 @@ type Config struct {
 	EmailHostPassword    string
 	MailgunDomain        string
 	MailgunPrivateAPIKey string
+	RabbitMQHost         string
+	RabbitMQPort         string
+	RabbitMQUser         string
+	RabbitMQPassword     string
 }
 
 // Server is the server interface
@@ -48,6 +53,7 @@ type Server interface {
 	Mail() *utils.EmailSMTPConfig
 	Mailgun() *utils.MailgunConfig
 	Redis() *cache.RedisCache
+	Rabbit() *rabbitmq.RabbitMQConfig
 }
 
 // Broker is the server broker
@@ -59,6 +65,7 @@ type Broker struct {
 	mail    *utils.EmailSMTPConfig
 	mailgun *utils.MailgunConfig
 	redis   *cache.RedisCache
+	rabbit  *rabbitmq.RabbitMQConfig
 }
 
 // Config returns the server configuration
@@ -89,6 +96,11 @@ func (b *Broker) Mailgun() *utils.MailgunConfig {
 // Redis returns the redis client
 func (b *Broker) Redis() *cache.RedisCache {
 	return b.redis
+}
+
+// Rabbit returns the rabbit client
+func (b *Broker) Rabbit() *rabbitmq.RabbitMQConfig {
+	return b.rabbit
 }
 
 // NewServer creates a new server
@@ -135,6 +147,12 @@ func NewServer(config *Config) (*Broker, error) {
 			DB:       config.RedisDB,
 			Expires:  config.RedisExpires,
 		}),
+		rabbit: rabbitmq.NewRabbitMQConfig(&rabbitmq.RabbitMQConfig{
+			Host:     config.RabbitMQHost,
+			Port:     config.RabbitMQPort,
+			User:     config.RabbitMQUser,
+			Password: config.RabbitMQPassword,
+		}),
 	}
 
 	return broker, nil
@@ -150,6 +168,18 @@ func (b *Broker) Serve(binder func(s Server, e *gin.Engine)) {
 		gin.SetMode(gin.DebugMode)
 		b.config.Host = "http://localhost:" + b.config.Port
 	}
+
+	// Connect to RabbitMQ
+	conn := b.rabbit.Connection()
+	defer conn.Close()
+
+	// Consumer for sending emails
+	go func() {
+		err := conn.ConsumeEmailVerification(b.mail.SendEmail)
+		if err != nil {
+			log.Fatalf("Failed to consume messages: %s", err)
+		}
+	}()
 
 	// Create a new repository
 	rep, err := database.NewPostresRepository(b.config.DatabaseURL)
@@ -198,4 +228,5 @@ func (b *Broker) Serve(binder func(s Server, e *gin.Engine)) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 }
