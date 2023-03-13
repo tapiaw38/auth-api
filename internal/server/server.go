@@ -175,7 +175,7 @@ func (b *Broker) Serve(binder func(s Server, e *gin.Engine)) {
 
 	// Consumer for sending emails
 	go func() {
-		err := conn.ConsumeEmailVerification(b.mail.SendEmail)
+		err := conn.ConsumeEmailMessage(b.mail.SendEmail)
 		if err != nil {
 			log.Fatalf("Failed to consume messages: %s", err)
 		}

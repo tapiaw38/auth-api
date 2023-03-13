@@ -58,8 +58,48 @@ func (c *RabbitMQConnection) Close() {
 	c.Conn.Close()
 }
 
-// PublishEmailVerification publishes an email verification message to RabbitMQ
-func (c *RabbitMQConnection) PublishEmailVerification(to string, from string, subject string, variables map[string]string) error {
+func (c *RabbitMQConnection) PublishJSONMessage(queueName string, message interface{}) error {
+	ch, err := c.Conn.Channel()
+	if err != nil {
+		return err
+	}
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare(
+		queueName, // queue name
+		false,     // durable
+		false,     // delete when unused
+		false,     // exclusive
+		false,     // no-wait
+		nil,       // arguments
+	)
+	if err != nil {
+		return err
+	}
+
+	jsonMessage, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+
+	err = ch.Publish(
+		"",     // exchange
+		q.Name, // routing key
+		false,  // mandatory
+		false,  // immediate
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        jsonMessage,
+		})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PublishEmailMessage publishes an email verification message to RabbitMQ
+func (c *RabbitMQConnection) PublishEmailMessage(to string, from string, subject string, tempateName string, variables map[string]string) error {
 	ch, err := c.Conn.Channel()
 	if err != nil {
 		return err
@@ -87,7 +127,7 @@ func (c *RabbitMQConnection) PublishEmailVerification(to string, from string, su
 		message.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
 	}
 
-	tmpl, err := template.ParseFiles("templates/email_verification.html")
+	tmpl, err := template.ParseFiles("templates/" + tempateName + ".html")
 	if err != nil {
 		return err
 	}
@@ -138,8 +178,8 @@ func (c *RabbitMQConnection) PublishEmailVerification(to string, from string, su
 	return nil
 }
 
-// ConsumeEmailVerification consumes an email verification message from RabbitMQ
-func (c *RabbitMQConnection) ConsumeEmailVerification(sendEmail func(message, toEmail, fromEmail string) error) error {
+// ConsumeEmailMessage consumes an email verification message from RabbitMQ
+func (c *RabbitMQConnection) ConsumeEmailMessage(sendEmail func(message, toEmail, fromEmail string) error) error {
 	for {
 		ch, err := c.Conn.Channel()
 		if err != nil {
