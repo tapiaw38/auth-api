@@ -47,6 +47,10 @@ type UserUpdateRequest struct {
 	Address     string `json:"address"`
 }
 
+type ResetPasswordRequest struct {
+	Email string `json:"email"`
+}
+
 // SignUpHandler handles the sign up request
 func SignUpHandler(s server.Server) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -102,14 +106,21 @@ func SignUpHandler(s server.Server) gin.HandlerFunc {
 		}
 
 		// Generate token and save it
-		token, err := GenerateToken(u)
+		token, err := utils.GenerateToken()
+		if err != nil {
+			HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		// Save token
+		err = SaveVerifiedEmailToken(c.Request.Context(), u, token)
 		if err != nil {
 			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
 		// Send verification email
-		err = SendEmailVerification(s, u, token)
+		err = SendVerificationEmail(s, u, token)
 		if err != nil {
 			HandleError(c, http.StatusInternalServerError, err)
 			return
@@ -125,17 +136,18 @@ func SignUpHandler(s server.Server) gin.HandlerFunc {
 	}
 }
 
+// VerifyEmailHandler handles the verification of email
 func VerifiedEmailHandler(s server.Server) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := c.Query("token")
 
-		user, err := repository.GetUserByToken(c.Request.Context(), token)
+		user, err := repository.GetUserByVerifiedEmailToken(c.Request.Context(), token)
 		if err != nil {
 			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		if time.Now().After(user.TokenExpiry) {
+		if time.Now().After(user.VerifiedEmailTokenExpiry) {
 			HandleError(c, http.StatusUnauthorized, errors.New("token expired"))
 			return
 		}
@@ -149,6 +161,53 @@ func VerifiedEmailHandler(s server.Server) gin.HandlerFunc {
 		}
 
 		c.Redirect(http.StatusMovedPermanently, s.Config().FrontendURL+"/auth/login")
+	}
+}
+
+// ResetPasswordHandler handles the reset password request
+func ResetPasswordHandler(s server.Server) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var request = ResetPasswordRequest{}
+
+		err := c.BindJSON(&request)
+		if err != nil {
+			HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		if !utils.ValidateEmail(request.Email) {
+			HandleError(c, http.StatusBadRequest, errors.New("invalid email"))
+			return
+		}
+
+		user, err := repository.GetUserByEmail(c.Request.Context(), request.Email)
+		if err != nil {
+			HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		// Generate token and save it
+		token, err := utils.GenerateToken()
+		if err != nil {
+			HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		// Save token
+		err = SavePasswordResetToken(c.Request.Context(), user, token)
+		if err != nil {
+			HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		// Send reset password email
+		err = SendResetPasswordEmail(s, user, token)
+		if err != nil {
+			HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		HandleSuccess(c, http.StatusOK, "ok", nil)
 	}
 }
 

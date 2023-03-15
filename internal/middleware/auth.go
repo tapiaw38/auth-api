@@ -15,6 +15,7 @@ var (
 		"login",
 		"signup",
 		"verify-email",
+		"reset-password",
 	}
 )
 

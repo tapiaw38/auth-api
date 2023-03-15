@@ -16,7 +16,7 @@ func ScanRowUser(s scanner) (*models.User, error) {
 	u := models.User{}
 	var lastName, picture, phoneNumber, address sql.NullString
 	var isActive, verifiedEmail sql.NullBool
-	var token sql.NullString
+	var verifiedEmailToken, passwordResetToken sql.NullString
 
 	err := s.Scan(
 		&u.Id,
@@ -30,8 +30,10 @@ func ScanRowUser(s scanner) (*models.User, error) {
 		&address,
 		&isActive,
 		&verifiedEmail,
-		&token,
-		&u.TokenExpiry,
+		&verifiedEmailToken,
+		&u.VerifiedEmailTokenExpiry,
+		&passwordResetToken,
+		&u.PasswordResetTokenExpiry,
 		&u.CreatedAt,
 		&u.UpdatedAt,
 	)
@@ -45,6 +47,8 @@ func ScanRowUser(s scanner) (*models.User, error) {
 	u.Address = address.String
 	u.IsActive = isActive.Bool
 	u.VerifiedEmail = verifiedEmail.Bool
+	u.VerifiedEmailToken = verifiedEmailToken.String
+	u.PasswordResetToken = passwordResetToken.String
 
 	return &u, nil
 }
@@ -53,7 +57,7 @@ func ScanRowUserResponse(s scanner) (*models.UserResponse, error) {
 	u := models.UserResponse{}
 	var lastName, picture, phoneNumber, address sql.NullString
 	var isActive, verifiedEmail sql.NullBool
-	var token sql.NullString
+	var verifiedEmailToken, passwordResetToken sql.NullString
 
 	err := s.Scan(
 		&u.Id,
@@ -66,8 +70,10 @@ func ScanRowUserResponse(s scanner) (*models.UserResponse, error) {
 		&address,
 		&isActive,
 		&verifiedEmail,
-		&token,
-		&u.TokenExpiry,
+		&verifiedEmailToken,
+		&u.VerifiedEmailTokenExpiry,
+		&passwordResetToken,
+		&u.PasswordResetTokenExpiry,
 		&u.CreatedAt,
 		&u.UpdatedAt,
 	)
@@ -81,7 +87,8 @@ func ScanRowUserResponse(s scanner) (*models.UserResponse, error) {
 	u.Address = address.String
 	u.IsActive = isActive.Bool
 	u.VerifiedEmail = verifiedEmail.Bool
-	u.Token = token.String
+	u.VerifiedEmailToken = verifiedEmailToken.String
+	u.PasswordResetToken = passwordResetToken.String
 
 	return &u, nil
 }

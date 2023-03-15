@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"time"
 
@@ -43,39 +41,50 @@ func AddRoleToUser(ctx context.Context, userId, roleName string) (*models.UserRe
 	return user, nil
 }
 
-// Generate a token for a user
-func GenerateToken(user *models.UserResponse) (string, error) {
-	// Create a random byte slice.
-	tokenBytes := make([]byte, 16)
-	_, err := rand.Read(tokenBytes)
-	if err != nil {
-		return "", err
-	}
-
-	// Encode the byte slice to a hexadecimal string.
-	token := hex.EncodeToString(tokenBytes)
-
+// SaveVerifiedEmailToken saves the verified email token to the database
+func SaveVerifiedEmailToken(ctx context.Context, user *models.UserResponse, token string) error {
 	// Save the token to the database.
-	user.Token = token
-	user.TokenExpiry = time.Now().Add(time.Hour * 48)
+	user.VerifiedEmailToken = token
+	user.VerifiedEmailTokenExpiry = time.Now().Add(time.Hour * 48)
 
 	userResponse := models.UserResponse{
-		Token:         user.Token,
-		TokenExpiry:   user.TokenExpiry,
-		IsActive:      user.IsActive,
-		VerifiedEmail: user.VerifiedEmail,
+		VerifiedEmailToken:       user.VerifiedEmailToken,
+		VerifiedEmailTokenExpiry: user.VerifiedEmailTokenExpiry,
+		IsActive:                 user.IsActive,
+		VerifiedEmail:            user.VerifiedEmail,
 	}
 
-	_, err = repository.PartialUpdateUser(context.Background(), user.Id, &userResponse)
+	_, err := repository.PartialUpdateUser(ctx, user.Id, &userResponse)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	return token, nil
+	return nil
 }
 
-// SendEmailVerification sends an email verification email to a user
-func SendEmailVerification(s server.Server, u *models.UserResponse, token string) error {
+// SavePasswordResetToken saves the password reset token to the database
+func SavePasswordResetToken(ctx context.Context, user *models.User, token string) error {
+	// Save the token to the database.
+	user.PasswordResetToken = token
+	user.PasswordResetTokenExpiry = time.Now().Add(time.Hour * 24)
+
+	userResponse := models.UserResponse{
+		PasswordResetToken:       user.PasswordResetToken,
+		PasswordResetTokenExpiry: user.PasswordResetTokenExpiry,
+		IsActive:                 user.IsActive,
+		VerifiedEmail:            user.VerifiedEmail,
+	}
+
+	_, err := repository.PartialUpdateUser(ctx, user.Id, &userResponse)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SendVerificationEmail sends an email verification email to a user
+func SendVerificationEmail(s server.Server, u *models.UserResponse, token string) error {
 
 	templateName := "email_verification"
 	subjet := "Bienvenido a Mi Tur"
@@ -83,6 +92,25 @@ func SendEmailVerification(s server.Server, u *models.UserResponse, token string
 	variables := map[string]string{
 		"name": u.FirstName + " " + u.LastName,
 		"link": s.Config().Host + "/auth/verify-email?token=" + token,
+	}
+
+	err := s.Rabbit().Connection().PublishEmailMessage(u.Email, s.Config().EmailHostUser, subjet, templateName, variables)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SendResetPasswordEmail sends an email verification email to a user
+func SendResetPasswordEmail(s server.Server, u *models.User, token string) error {
+
+	templateName := "reset_password"
+	subjet := "Restablecer contraseña"
+
+	variables := map[string]string{
+		"name": u.FirstName + " " + u.LastName,
+		"link": s.Config().Host + "/auth/reset-password?token=" + token,
 	}
 
 	err := s.Rabbit().Connection().PublishEmailMessage(u.Email, s.Config().EmailHostUser, subjet, templateName, variables)
@@ -173,11 +201,21 @@ func HandleEmailAndPasswordLogin(c *gin.Context, s server.Server, request *SignU
 		return nil, errors.New("invalid credentials")
 	}
 
-	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(request.Password)); err != nil {
-		return nil, errors.New("invalid credentials")
+	if err = ComparePassword(request.Password, user.Password); err != nil {
+		return nil, err
 	}
 
 	return user, nil
+}
+
+// ComparePassword compares a password with a hash
+func ComparePassword(password, hash string) error {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	if err != nil {
+		return errors.New("invalid credentials")
+	}
+
+	return nil
 }
 
 // DecodeToten decodes a user token

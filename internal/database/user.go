@@ -14,13 +14,15 @@ func (repository *PostgresRepository) InsertUser(ctx context.Context, user *mode
 		INSERT INTO users (
 			id, first_name, last_name, username, email, 
 			password, phone_number, picture, address, 
-			is_active, verified_email, token, token_expiry, 
+			is_active, verified_email, 
 			created_at, updated_at
 		) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING id, first_name, last_name, username, 
 			email, phone_number, picture, address, 
-			is_active, verified_email, token, token_expiry, 
+			is_active, verified_email, verified_email_token,
+			verified_email_token_expiry, password_reset_token,
+			password_reset_token_expiry,
 			created_at, updated_at;
 		`
 	row := repository.db.QueryRowContext(
@@ -28,8 +30,8 @@ func (repository *PostgresRepository) InsertUser(ctx context.Context, user *mode
 		user.Id, user.FirstName, user.LastName,
 		user.Username, user.Email, user.Password,
 		user.PhoneNumber, user.Picture, user.Address,
-		user.IsActive, user.VerifiedEmail, user.Token,
-		user.TokenExpiry, time.Now(), time.Now(),
+		user.IsActive, user.VerifiedEmail,
+		time.Now(), time.Now(),
 	)
 
 	u, err := ScanRowUserResponse(row)
@@ -46,7 +48,9 @@ func (repository *PostgresRepository) GetUserById(ctx context.Context, id string
 	q := `
 		SELECT id, first_name, last_name, username, 
 			email, phone_number, picture, address, 
-			is_active, verified_email, token, token_expiry, 
+			is_active, verified_email, verified_email_token,
+			verified_email_token_expiry, password_reset_token,
+			password_reset_token_expiry,
 			created_at, updated_at
 		FROM users 
 		WHERE id = $1;
@@ -107,16 +111,88 @@ func (repository *PostgresRepository) GetUserById(ctx context.Context, id string
 	return user, nil
 }
 
-// GetUserById returns a user by id
-func (repository *PostgresRepository) GetUserByToken(ctx context.Context, token string) (*models.UserResponse, error) {
+// GetUserByVerifiedEmailToken returns a user by verified email token
+func (repository *PostgresRepository) GetUserByVerifiedEmailToken(ctx context.Context, token string) (*models.UserResponse, error) {
 
 	q := `
 		SELECT id, first_name, last_name, username, 
 			email, phone_number, picture, address, 
-			is_active, verified_email, token, token_expiry, 
+			is_active, verified_email, verified_email_token,
+			verified_email_token_expiry, password_reset_token,
+			password_reset_token_expiry,
 			created_at, updated_at
 		FROM users 
-		WHERE token = $1;
+		WHERE verified_email_token = $1;
+	`
+
+	rows, err := repository.db.QueryContext(ctx, q, token)
+
+	defer func() {
+		err = rows.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	var user *models.UserResponse
+
+	for rows.Next() {
+
+		user, err = ScanRowUserResponse(rows)
+		if err != nil {
+			return nil, err
+		}
+
+		q := `
+			SELECT roles.id, roles.name
+			FROM roles
+			INNER JOIN user_roles
+			ON roles.id = user_roles.role_id
+			WHERE user_roles.user_id = $1;
+		`
+
+		rows, err = repository.db.QueryContext(ctx, q, user.Id)
+
+		defer func() {
+			err = rows.Close()
+			if err != nil {
+				log.Fatal(err)
+			}
+		}()
+
+		for rows.Next() {
+			role, err := ScanRowRole(rows)
+			if err != nil {
+				return nil, err
+			}
+
+			user.Roles = append(user.Roles, *role)
+		}
+
+		if err = rows.Err(); err != nil {
+			return nil, err
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+// GetUserByVerifiedEmailToken returns a user by verified email token
+func (repository *PostgresRepository) GetUserByPasswordResetToken(ctx context.Context, token string) (*models.UserResponse, error) {
+
+	q := `
+		SELECT id, first_name, last_name, username, 
+			email, phone_number, picture, address, 
+			is_active, verified_email, verified_email_token,
+			verified_email_token_expiry, password_reset_token,
+			password_reset_token_expiry,
+			created_at, updated_at
+		FROM users 
+		WHERE password_reset_token = $1;
 	`
 
 	rows, err := repository.db.QueryContext(ctx, q, token)
@@ -180,7 +256,9 @@ func (repository *PostgresRepository) GetUserByEmailSocial(ctx context.Context, 
 	q := `
 		SELECT id, first_name, last_name, username, 
 			email, phone_number, picture, address, 
-			is_active, verified_email, token, token_expiry, 
+			is_active, verified_email, verified_email_token,
+			verified_email_token_expiry, password_reset_token,
+			password_reset_token_expiry,
 			created_at, updated_at
 		FROM users 
 		WHERE email = $1;
@@ -247,8 +325,9 @@ func (repository *PostgresRepository) GetUserByEmail(ctx context.Context, email 
 	q := `
 		SELECT id, first_name, last_name, username, email, 
 			password, phone_number, picture, address, 
-			is_active, verified_email, token, token_expiry, 
-			created_at, updated_at
+			is_active, verified_email, verified_email_token, 
+			verified_email_token_expiry, password_reset_token, 
+			password_reset_token_expiry, created_at, updated_at
 		FROM users 
 		WHERE email = $1;
 	`
@@ -316,20 +395,25 @@ func (ur *PostgresRepository) UpdateUser(ctx context.Context, id string, user *m
 			first_name = $1, last_name = $2, email = $3, 
 			picture = $4, phone_number = $5, address = $6, 
 			is_active = $7, verified_email = $8, 
-			token = $9, token_expiry = $10,
-			updated_at = $11
-		WHERE id = $12
+			verified_email_token = $9, verified_email_token_expiry = $10,
+			password_reset_token = $11, password_reset_token_expiry = $12,
+			updated_at = $13
+		WHERE id = $14
 		RETURNING id, first_name, last_name, username, 
 			email, phone_number, picture, address, 
-			is_active, verified_email, token, token_expiry, 
+			is_active, verified_email, verified_email_token,
+			verified_email_token_expiry, password_reset_token,
+			password_reset_token_expiry,
 			created_at, updated_at;
 	`
 
 	row := ur.db.QueryRowContext(
 		ctx, q, user.FirstName, user.LastName, user.Email,
 		user.Picture, user.PhoneNumber, user.Address,
-		user.IsActive, user.VerifiedEmail, user.Token,
-		user.TokenExpiry, time.Now(), id,
+		user.IsActive, user.VerifiedEmail, user.VerifiedEmailToken,
+		user.VerifiedEmailTokenExpiry, user.PasswordResetToken,
+		user.PasswordResetTokenExpiry,
+		time.Now(), id,
 	)
 
 	u, err := ScanRowUserResponse(row)
@@ -396,20 +480,26 @@ func (ur *PostgresRepository) PartialUpdateUser(ctx context.Context, id string, 
 					WHEN $8 = NULL THEN verified_email
 					ELSE verified_email
 				END,
-			token = CASE WHEN $9 = '' THEN token ELSE $9 END,
-			token_expiry = $10,
-			updated_at = $11
-		WHERE id = $12
+			verified_email_token = CASE WHEN $9 = '' THEN verified_email_token ELSE $9 END,
+			verified_email_token_expiry = $10,
+			password_reset_token = CASE WHEN $11 = '' THEN password_reset_token ELSE $11 END,
+			password_reset_token_expiry = $12,
+			updated_at = $13
+		WHERE id = $14
 		RETURNING id, first_name, last_name, username, email, 
 			phone_number, picture, address, 
-			is_active, verified_email, token, token_expiry,
+			is_active, verified_email, verified_email_token,
+			verified_email_token_expiry, password_reset_token,
+			password_reset_token_expiry,
 			created_at, updated_at
 	`
 	row := ur.db.QueryRowContext(
 		ctx, q, user.FirstName, user.LastName, user.Email,
 		user.PhoneNumber, user.Picture, user.Address,
-		user.IsActive, user.VerifiedEmail, user.Token,
-		user.TokenExpiry, time.Now(), id,
+		user.IsActive, user.VerifiedEmail, user.VerifiedEmailToken,
+		user.VerifiedEmailTokenExpiry, user.PasswordResetToken,
+		user.PasswordResetTokenExpiry,
+		time.Now(), id,
 	)
 
 	u, err := ScanRowUserResponse(row)
@@ -456,7 +546,9 @@ func (repository *PostgresRepository) ListUser(ctx context.Context) ([]*models.U
 	q := `
 	SELECT id, first_name, last_name, username, 
 		email, phone_number, picture, address, 
-		is_active, verified_email, token, token_expiry, 
+		is_active, verified_email, verified_email_token,
+		verified_email_token_expiry, password_reset_token,
+		password_reset_token_expiry,
 		created_at, updated_at
 	FROM users
 	`

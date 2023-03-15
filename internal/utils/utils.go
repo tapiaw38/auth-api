@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"regexp"
@@ -36,4 +37,20 @@ func ConvertInterfaceToString(value interface{}) (string, error) {
 	default:
 		return "", fmt.Errorf("cannot convert %v to string", v)
 	}
+}
+
+// Generate a token
+func GenerateToken() (string, error) {
+	// Create a random byte slice.
+	tokenBytes := make([]byte, 16)
+
+	_, err := rand.Read(tokenBytes)
+	if err != nil {
+		return "", err
+	}
+
+	// Encode the byte slice to a hexadecimal string.
+	token := hex.EncodeToString(tokenBytes)
+
+	return token, nil
 }
