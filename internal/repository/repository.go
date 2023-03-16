@@ -9,15 +9,14 @@ import (
 // Repository is the repository interface
 type Repository interface {
 	// User
-	InsertUser(ctx context.Context, user *models.User) (*models.UserResponse, error)
-	GetUserById(ctx context.Context, id string) (*models.UserResponse, error)
-	GetUserByVerifiedEmailToken(ctx context.Context, token string) (*models.UserResponse, error)
-	GetUserByPasswordResetToken(ctx context.Context, token string) (*models.UserResponse, error)
-	GetUserByEmailSocial(ctx context.Context, email string) (*models.UserResponse, error)
+	InsertUser(ctx context.Context, user *models.User) (*models.User, error)
+	GetUserById(ctx context.Context, id string) (*models.User, error)
+	GetUserByVerifiedEmailToken(ctx context.Context, token string) (*models.User, error)
+	GetUserByPasswordResetToken(ctx context.Context, token string) (*models.User, error)
 	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
-	UpdateUser(ctx context.Context, id string, user *models.UserResponse) (*models.UserResponse, error)
-	PartialUpdateUser(ctx context.Context, id string, user *models.UserResponse) (*models.UserResponse, error)
-	ListUser(ctx context.Context) ([]*models.UserResponse, error)
+	UpdateUser(ctx context.Context, id string, user *models.User) (*models.User, error)
+	PartialUpdateUser(ctx context.Context, id string, user *models.User) (*models.User, error)
+	ListUser(ctx context.Context) ([]*models.User, error)
 	// Role
 	EnsureRole() error
 	InsertRole(ctx context.Context, role *models.Role) (*models.Role, error)

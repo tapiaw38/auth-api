@@ -16,7 +16,7 @@ import (
 )
 
 // Add a role to a user by name
-func AddRoleToUser(ctx context.Context, userId, roleName string) (*models.UserResponse, error) {
+func AddRoleToUser(ctx context.Context, userId, roleName string) (*models.User, error) {
 
 	role, err := repository.GetRoleByName(ctx, roleName)
 	if err != nil {
@@ -42,12 +42,12 @@ func AddRoleToUser(ctx context.Context, userId, roleName string) (*models.UserRe
 }
 
 // SaveVerifiedEmailToken saves the verified email token to the database
-func SaveVerifiedEmailToken(ctx context.Context, user *models.UserResponse, token string) error {
+func SaveVerifiedEmailToken(ctx context.Context, user *models.User, token string) error {
 	// Save the token to the database.
 	user.VerifiedEmailToken = token
 	user.VerifiedEmailTokenExpiry = time.Now().Add(time.Hour * 48)
 
-	userResponse := models.UserResponse{
+	userResponse := models.User{
 		VerifiedEmailToken:       user.VerifiedEmailToken,
 		VerifiedEmailTokenExpiry: user.VerifiedEmailTokenExpiry,
 		IsActive:                 user.IsActive,
@@ -68,7 +68,7 @@ func SavePasswordResetToken(ctx context.Context, user *models.User, token string
 	user.PasswordResetToken = token
 	user.PasswordResetTokenExpiry = time.Now().Add(time.Hour * 24)
 
-	userResponse := models.UserResponse{
+	userResponse := models.User{
 		PasswordResetToken:       user.PasswordResetToken,
 		PasswordResetTokenExpiry: user.PasswordResetTokenExpiry,
 		IsActive:                 user.IsActive,
@@ -84,7 +84,7 @@ func SavePasswordResetToken(ctx context.Context, user *models.User, token string
 }
 
 // SendVerificationEmail sends an email verification email to a user
-func SendVerificationEmail(s server.Server, u *models.UserResponse, token string) error {
+func SendVerificationEmail(s server.Server, u *models.User, token string) error {
 
 	templateName := "email_verification"
 	subjet := "Bienvenido a Mi Tur"
@@ -110,7 +110,7 @@ func SendResetPasswordEmail(s server.Server, u *models.User, token string) error
 
 	variables := map[string]string{
 		"name": u.FirstName + " " + u.LastName,
-		"link": s.Config().Host + "/auth/reset-password?token=" + token,
+		"link": s.Config().FrontendURL + "/auth/reset-password?token=" + token,
 	}
 
 	err := s.Rabbit().Connection().PublishEmailMessage(u.Email, s.Config().EmailHostUser, subjet, templateName, variables)
@@ -122,7 +122,7 @@ func SendResetPasswordEmail(s server.Server, u *models.User, token string) error
 }
 
 // HandleGoogleLogin handles the google login request
-func HandleGoogleLogin(c *gin.Context, s server.Server, request *SignUpLoginRequest) (*models.UserResponse, error) {
+func HandleGoogleLogin(c *gin.Context, s server.Server, request *SignUpLoginRequest) (*models.User, error) {
 	token, err := s.Google().ExchangeCode(c.Request.Context(), request.Code)
 	if err != nil {
 		return nil, err
@@ -133,7 +133,7 @@ func HandleGoogleLogin(c *gin.Context, s server.Server, request *SignUpLoginRequ
 		return nil, err
 	}
 
-	user, err := repository.GetUserByEmailSocial(c.Request.Context(), userInfo.Email)
+	user, err := repository.GetUserByEmail(c.Request.Context(), userInfo.Email)
 	if err != nil || user == nil {
 		// If user not registered, register user
 		id, err := ksuid.NewRandom()
@@ -172,13 +172,13 @@ func HandleGoogleLogin(c *gin.Context, s server.Server, request *SignUpLoginRequ
 
 	// If user already registered, update user info
 	if user.Picture == "" || !user.VerifiedEmail {
-		userUpdate := models.UserResponse{
+		userUpdate := models.User{
 			Picture:       userInfo.Picture,
 			IsActive:      user.IsActive,
 			VerifiedEmail: userInfo.VerifiedEmail,
 		}
 
-		user, err = repository.PartialUpdateUser(c.Request.Context(), user.Id, &userUpdate)
+		user, err = repository.UpdateUser(c.Request.Context(), user.Id, &userUpdate)
 		if err != nil {
 			return nil, err
 		}
@@ -232,4 +232,33 @@ func DecodeToken(tokenString, secret string) (*models.AppClaims, error) {
 	} else {
 		return nil, errors.New("invalid token")
 	}
+}
+
+// GetUserResponse returns a user without password
+func GetUserResponse(user *models.User) *models.UserResponse {
+	return &models.UserResponse{
+		Id:            user.Id,
+		FirstName:     user.FirstName,
+		LastName:      user.LastName,
+		Username:      user.Username,
+		Email:         user.Email,
+		PhoneNumber:   user.PhoneNumber,
+		Picture:       user.Picture,
+		Address:       user.Address,
+		IsActive:      user.IsActive,
+		VerifiedEmail: user.VerifiedEmail,
+		Roles:         user.Roles,
+		CreatedAt:     user.CreatedAt,
+		UpdatedAt:     user.UpdatedAt,
+	}
+}
+
+// GetUsersResponse returns a list of users without password
+func GetUsersResponse(users []*models.User) []*models.UserResponse {
+	var usersWithoutPassword []*models.UserResponse
+	for _, user := range users {
+		usersWithoutPassword = append(usersWithoutPassword, GetUserResponse(user))
+	}
+
+	return usersWithoutPassword
 }

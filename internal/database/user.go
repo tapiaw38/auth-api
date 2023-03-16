@@ -9,7 +9,7 @@ import (
 )
 
 // InsertUser inserts a new user into the database
-func (repository *PostgresRepository) InsertUser(ctx context.Context, user *models.User) (*models.UserResponse, error) {
+func (repository *PostgresRepository) InsertUser(ctx context.Context, user *models.User) (*models.User, error) {
 	q := `
 		INSERT INTO users (
 			id, first_name, last_name, username, email, 
@@ -19,11 +19,10 @@ func (repository *PostgresRepository) InsertUser(ctx context.Context, user *mode
 		) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING id, first_name, last_name, username, 
-			email, phone_number, picture, address, 
+			email, password, phone_number, picture, address, 
 			is_active, verified_email, verified_email_token,
 			verified_email_token_expiry, password_reset_token,
-			password_reset_token_expiry,
-			created_at, updated_at;
+			password_reset_token_expiry, created_at, updated_at;
 		`
 	row := repository.db.QueryRowContext(
 		ctx, q,
@@ -34,20 +33,20 @@ func (repository *PostgresRepository) InsertUser(ctx context.Context, user *mode
 		time.Now(), time.Now(),
 	)
 
-	u, err := ScanRowUserResponse(row)
+	u, err := ScanRowUser(row)
 	if err != nil {
-		return &models.UserResponse{}, err
+		return &models.User{}, err
 	}
 
 	return u, nil
 }
 
 // GetUserById returns a user by id
-func (repository *PostgresRepository) GetUserById(ctx context.Context, id string) (*models.UserResponse, error) {
+func (repository *PostgresRepository) GetUserById(ctx context.Context, id string) (*models.User, error) {
 
 	q := `
 		SELECT id, first_name, last_name, username, 
-			email, phone_number, picture, address, 
+			email, password, phone_number, picture, address, 
 			is_active, verified_email, verified_email_token,
 			verified_email_token_expiry, password_reset_token,
 			password_reset_token_expiry,
@@ -65,10 +64,10 @@ func (repository *PostgresRepository) GetUserById(ctx context.Context, id string
 		}
 	}()
 
-	var user *models.UserResponse
+	var user *models.User
 
 	for rows.Next() {
-		user, err = ScanRowUserResponse(rows)
+		user, err = ScanRowUser(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -112,11 +111,11 @@ func (repository *PostgresRepository) GetUserById(ctx context.Context, id string
 }
 
 // GetUserByVerifiedEmailToken returns a user by verified email token
-func (repository *PostgresRepository) GetUserByVerifiedEmailToken(ctx context.Context, token string) (*models.UserResponse, error) {
+func (repository *PostgresRepository) GetUserByVerifiedEmailToken(ctx context.Context, token string) (*models.User, error) {
 
 	q := `
 		SELECT id, first_name, last_name, username, 
-			email, phone_number, picture, address, 
+			email, password, phone_number, picture, address, 
 			is_active, verified_email, verified_email_token,
 			verified_email_token_expiry, password_reset_token,
 			password_reset_token_expiry,
@@ -134,11 +133,11 @@ func (repository *PostgresRepository) GetUserByVerifiedEmailToken(ctx context.Co
 		}
 	}()
 
-	var user *models.UserResponse
+	var user *models.User
 
 	for rows.Next() {
 
-		user, err = ScanRowUserResponse(rows)
+		user, err = ScanRowUser(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -182,15 +181,14 @@ func (repository *PostgresRepository) GetUserByVerifiedEmailToken(ctx context.Co
 }
 
 // GetUserByVerifiedEmailToken returns a user by verified email token
-func (repository *PostgresRepository) GetUserByPasswordResetToken(ctx context.Context, token string) (*models.UserResponse, error) {
+func (repository *PostgresRepository) GetUserByPasswordResetToken(ctx context.Context, token string) (*models.User, error) {
 
 	q := `
-		SELECT id, first_name, last_name, username, 
-			email, phone_number, picture, address, 
-			is_active, verified_email, verified_email_token,
-			verified_email_token_expiry, password_reset_token,
-			password_reset_token_expiry,
-			created_at, updated_at
+		SELECT id, first_name, last_name, username, email, 
+			password, phone_number, picture, address, 
+			is_active, verified_email, verified_email_token, 
+			verified_email_token_expiry, password_reset_token, 
+			password_reset_token_expiry, created_at, updated_at
 		FROM users 
 		WHERE password_reset_token = $1;
 	`
@@ -204,79 +202,11 @@ func (repository *PostgresRepository) GetUserByPasswordResetToken(ctx context.Co
 		}
 	}()
 
-	var user *models.UserResponse
+	var user *models.User
 
 	for rows.Next() {
 
-		user, err = ScanRowUserResponse(rows)
-		if err != nil {
-			return nil, err
-		}
-
-		q := `
-			SELECT roles.id, roles.name
-			FROM roles
-			INNER JOIN user_roles
-			ON roles.id = user_roles.role_id
-			WHERE user_roles.user_id = $1;
-		`
-
-		rows, err = repository.db.QueryContext(ctx, q, user.Id)
-
-		defer func() {
-			err = rows.Close()
-			if err != nil {
-				log.Fatal(err)
-			}
-		}()
-
-		for rows.Next() {
-			role, err := ScanRowRole(rows)
-			if err != nil {
-				return nil, err
-			}
-
-			user.Roles = append(user.Roles, *role)
-		}
-
-		if err = rows.Err(); err != nil {
-			return nil, err
-		}
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return user, nil
-}
-
-func (repository *PostgresRepository) GetUserByEmailSocial(ctx context.Context, email string) (*models.UserResponse, error) {
-
-	q := `
-		SELECT id, first_name, last_name, username, 
-			email, phone_number, picture, address, 
-			is_active, verified_email, verified_email_token,
-			verified_email_token_expiry, password_reset_token,
-			password_reset_token_expiry,
-			created_at, updated_at
-		FROM users 
-		WHERE email = $1;
-	`
-
-	rows, err := repository.db.QueryContext(ctx, q, email)
-
-	defer func() {
-		err = rows.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	var user *models.UserResponse
-
-	for rows.Next() {
-		user, err = ScanRowUserResponse(rows)
+		user, err = ScanRowUser(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -388,19 +318,19 @@ func (repository *PostgresRepository) GetUserByEmail(ctx context.Context, email 
 }
 
 // UpdateUser updates a user in the database
-func (ur *PostgresRepository) UpdateUser(ctx context.Context, id string, user *models.UserResponse) (*models.UserResponse, error) {
+func (ur *PostgresRepository) UpdateUser(ctx context.Context, id string, user *models.User) (*models.User, error) {
 	q := `
 	UPDATE users
 		SET 
-			first_name = $1, last_name = $2, email = $3, 
-			picture = $4, phone_number = $5, address = $6, 
-			is_active = $7, verified_email = $8, 
-			verified_email_token = $9, verified_email_token_expiry = $10,
-			password_reset_token = $11, password_reset_token_expiry = $12,
-			updated_at = $13
-		WHERE id = $14
+			first_name = $1, last_name = $2, email = $3,
+			password = $4, picture = $5, phone_number = $6, 
+			address = $7, is_active = $8, verified_email = $9, 
+			verified_email_token = $10, verified_email_token_expiry = $11,
+			password_reset_token = $12, password_reset_token_expiry = $13,
+			updated_at = $14
+		WHERE id = $15
 		RETURNING id, first_name, last_name, username, 
-			email, phone_number, picture, address, 
+			email, password, phone_number, picture, address, 
 			is_active, verified_email, verified_email_token,
 			verified_email_token_expiry, password_reset_token,
 			password_reset_token_expiry,
@@ -409,16 +339,16 @@ func (ur *PostgresRepository) UpdateUser(ctx context.Context, id string, user *m
 
 	row := ur.db.QueryRowContext(
 		ctx, q, user.FirstName, user.LastName, user.Email,
-		user.Picture, user.PhoneNumber, user.Address,
+		user.Password, user.Picture, user.PhoneNumber, user.Address,
 		user.IsActive, user.VerifiedEmail, user.VerifiedEmailToken,
 		user.VerifiedEmailTokenExpiry, user.PasswordResetToken,
 		user.PasswordResetTokenExpiry,
 		time.Now(), id,
 	)
 
-	u, err := ScanRowUserResponse(row)
+	u, err := ScanRowUser(row)
 	if err != nil {
-		return &models.UserResponse{}, err
+		return &models.User{}, err
 	}
 
 	q = `
@@ -455,7 +385,7 @@ func (ur *PostgresRepository) UpdateUser(ctx context.Context, id string, user *m
 }
 
 // PartialUpdateUser updates a user in the database
-func (ur *PostgresRepository) PartialUpdateUser(ctx context.Context, id string, user *models.UserResponse) (*models.UserResponse, error) {
+func (ur *PostgresRepository) PartialUpdateUser(ctx context.Context, id string, user *models.User) (*models.User, error) {
 
 	q := `
 	UPDATE users
@@ -487,7 +417,7 @@ func (ur *PostgresRepository) PartialUpdateUser(ctx context.Context, id string, 
 			updated_at = $13
 		WHERE id = $14
 		RETURNING id, first_name, last_name, username, email, 
-			phone_number, picture, address, 
+			password, phone_number, picture, address, 
 			is_active, verified_email, verified_email_token,
 			verified_email_token_expiry, password_reset_token,
 			password_reset_token_expiry,
@@ -502,9 +432,9 @@ func (ur *PostgresRepository) PartialUpdateUser(ctx context.Context, id string, 
 		time.Now(), id,
 	)
 
-	u, err := ScanRowUserResponse(row)
+	u, err := ScanRowUser(row)
 	if err != nil {
-		return &models.UserResponse{}, err
+		return &models.User{}, err
 	}
 
 	q = `
@@ -541,11 +471,11 @@ func (ur *PostgresRepository) PartialUpdateUser(ctx context.Context, id string, 
 }
 
 // GetUsers returns all users
-func (repository *PostgresRepository) ListUser(ctx context.Context) ([]*models.UserResponse, error) {
+func (repository *PostgresRepository) ListUser(ctx context.Context) ([]*models.User, error) {
 
 	q := `
 	SELECT id, first_name, last_name, username, 
-		email, phone_number, picture, address, 
+		email, password, phone_number, picture, address, 
 		is_active, verified_email, verified_email_token,
 		verified_email_token_expiry, password_reset_token,
 		password_reset_token_expiry,
@@ -562,11 +492,11 @@ func (repository *PostgresRepository) ListUser(ctx context.Context) ([]*models.U
 		}
 	}()
 
-	var users []*models.UserResponse
+	var users []*models.User
 
 	for rows.Next() {
 
-		user, err := ScanRowUserResponse(rows)
+		user, err := ScanRowUser(rows)
 		if err != nil {
 			return nil, err
 		}

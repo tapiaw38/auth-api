@@ -14,8 +14,7 @@ type scanner interface {
 // ScanRowUser scans a row into a User struct
 func ScanRowUser(s scanner) (*models.User, error) {
 	u := models.User{}
-	var lastName, picture, phoneNumber, address sql.NullString
-	var isActive, verifiedEmail sql.NullBool
+	var lastName, picture, phoneNumber, address, password sql.NullString
 	var verifiedEmailToken, passwordResetToken sql.NullString
 
 	err := s.Scan(
@@ -24,12 +23,12 @@ func ScanRowUser(s scanner) (*models.User, error) {
 		&lastName,
 		&u.Username,
 		&u.Email,
-		&u.Password,
+		&password,
 		&phoneNumber,
 		&picture,
 		&address,
-		&isActive,
-		&verifiedEmail,
+		&u.IsActive,
+		&u.VerifiedEmail,
 		&verifiedEmailToken,
 		&u.VerifiedEmailTokenExpiry,
 		&passwordResetToken,
@@ -37,58 +36,38 @@ func ScanRowUser(s scanner) (*models.User, error) {
 		&u.CreatedAt,
 		&u.UpdatedAt,
 	)
-	if err != nil {
-		return &u, err
+
+	if lastName.Valid {
+		u.LastName = lastName.String
 	}
 
-	u.LastName = lastName.String
-	u.Picture = picture.String
-	u.PhoneNumber = phoneNumber.String
-	u.Address = address.String
-	u.IsActive = isActive.Bool
-	u.VerifiedEmail = verifiedEmail.Bool
-	u.VerifiedEmailToken = verifiedEmailToken.String
-	u.PasswordResetToken = passwordResetToken.String
+	if picture.Valid {
+		u.Picture = picture.String
+	}
 
-	return &u, nil
-}
+	if phoneNumber.Valid {
+		u.PhoneNumber = phoneNumber.String
+	}
 
-func ScanRowUserResponse(s scanner) (*models.UserResponse, error) {
-	u := models.UserResponse{}
-	var lastName, picture, phoneNumber, address sql.NullString
-	var isActive, verifiedEmail sql.NullBool
-	var verifiedEmailToken, passwordResetToken sql.NullString
+	if address.Valid {
+		u.Address = address.String
+	}
 
-	err := s.Scan(
-		&u.Id,
-		&u.FirstName,
-		&lastName,
-		&u.Username,
-		&u.Email,
-		&phoneNumber,
-		&picture,
-		&address,
-		&isActive,
-		&verifiedEmail,
-		&verifiedEmailToken,
-		&u.VerifiedEmailTokenExpiry,
-		&passwordResetToken,
-		&u.PasswordResetTokenExpiry,
-		&u.CreatedAt,
-		&u.UpdatedAt,
-	)
+	if password.Valid {
+		u.Password = password.String
+	}
+
+	if verifiedEmailToken.Valid {
+		u.VerifiedEmailToken = verifiedEmailToken.String
+	}
+
+	if passwordResetToken.Valid {
+		u.PasswordResetToken = passwordResetToken.String
+	}
+
 	if err != nil {
 		return nil, err
 	}
-
-	u.LastName = lastName.String
-	u.Picture = picture.String
-	u.PhoneNumber = phoneNumber.String
-	u.Address = address.String
-	u.IsActive = isActive.Bool
-	u.VerifiedEmail = verifiedEmail.Bool
-	u.VerifiedEmailToken = verifiedEmailToken.String
-	u.PasswordResetToken = passwordResetToken.String
 
 	return &u, nil
 }

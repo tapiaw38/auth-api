@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v7"
+	"github.com/tapiaw38/auth-api/internal/models"
 )
 
 // RedisCache is the redis cache configuration
@@ -67,4 +68,73 @@ func (c *RedisCache) SetValue(key string, value interface{}) error {
 	}
 
 	return nil
+}
+
+// SetUser sets a user in the cache
+func (c *RedisCache) SetUser(key string, user *models.User) error {
+	client := c.GetClient()
+
+	json, err := json.Marshal(&user)
+	if err != nil {
+		return err
+	}
+
+	err = client.Set(key, json, c.Expires*time.Second).Err()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetUser gets a user from the cache
+func (c *RedisCache) GetUser(key string) (*models.User, error) {
+	client := c.GetClient()
+
+	val, err := client.Get(key).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	var user models.User
+	err = json.Unmarshal([]byte(val), &user)
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+// SetUsers sets a user in the cache
+func (c *RedisCache) SetUsers(key string, users []*models.User) error {
+	client := c.GetClient()
+
+	json, err := json.Marshal(&users)
+	if err != nil {
+		return err
+	}
+
+	err = client.Set(key, json, c.Expires*time.Second).Err()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *RedisCache) GetUsers(key string) ([]*models.User, error) {
+	client := c.GetClient()
+
+	val, err := client.Get(key).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	var users []*models.User
+	err = json.Unmarshal([]byte(val), &users)
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
 }

@@ -6,39 +6,35 @@ import (
 	"github.com/tapiaw38/auth-api/internal/models"
 )
 
-func InsertUser(ctx context.Context, user *models.User) (*models.UserResponse, error) {
+func InsertUser(ctx context.Context, user *models.User) (*models.User, error) {
 	return implementation.InsertUser(ctx, user)
 }
 
-func GetUserById(ctx context.Context, id string) (*models.UserResponse, error) {
+func GetUserById(ctx context.Context, id string) (*models.User, error) {
 	return implementation.GetUserById(ctx, id)
 }
 
-func GetUserByVerifiedEmailToken(ctx context.Context, token string) (*models.UserResponse, error) {
+func GetUserByVerifiedEmailToken(ctx context.Context, token string) (*models.User, error) {
 	return implementation.GetUserByVerifiedEmailToken(ctx, token)
 }
 
-func GetUserByPasswordResetToken(ctx context.Context, token string) (*models.UserResponse, error) {
+func GetUserByPasswordResetToken(ctx context.Context, token string) (*models.User, error) {
 	return implementation.GetUserByPasswordResetToken(ctx, token)
-}
-
-func GetUserByEmailSocial(ctx context.Context, email string) (*models.UserResponse, error) {
-	return implementation.GetUserByEmailSocial(ctx, email)
 }
 
 func GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	return implementation.GetUserByEmail(ctx, email)
 }
 
-func UpdateUser(ctx context.Context, id string, user *models.UserResponse) (*models.UserResponse, error) {
+func UpdateUser(ctx context.Context, id string, user *models.User) (*models.User, error) {
 	return implementation.UpdateUser(ctx, id, user)
 }
 
-func PartialUpdateUser(ctx context.Context, id string, user *models.UserResponse) (*models.UserResponse, error) {
+func PartialUpdateUser(ctx context.Context, id string, user *models.User) (*models.User, error) {
 	return implementation.PartialUpdateUser(ctx, id, user)
 }
 
-func ListUser(ctx context.Context) ([]*models.UserResponse, error) {
+func ListUser(ctx context.Context) ([]*models.User, error) {
 	return implementation.ListUser(ctx)
 }
 

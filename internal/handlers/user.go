@@ -13,11 +13,6 @@ import (
 	"github.com/tapiaw38/auth-api/internal/repository"
 	"github.com/tapiaw38/auth-api/internal/server"
 	"github.com/tapiaw38/auth-api/internal/utils"
-	"golang.org/x/crypto/bcrypt"
-)
-
-const (
-	HASH_COST = 8
 )
 
 type SignUpLoginRequest struct {
@@ -51,6 +46,10 @@ type ResetPasswordRequest struct {
 	Email string `json:"email"`
 }
 
+type ChangePasswordRequest struct {
+	Password string `json:"password"`
+}
+
 // SignUpHandler handles the sign up request
 func SignUpHandler(s server.Server) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -67,7 +66,7 @@ func SignUpHandler(s server.Server) gin.HandlerFunc {
 			return
 		}
 
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), HASH_COST)
+		hashedPassword, err := utils.HashPassword(request.Password)
 		if err != nil {
 			HandleError(c, http.StatusInternalServerError, err)
 			return
@@ -80,16 +79,17 @@ func SignUpHandler(s server.Server) gin.HandlerFunc {
 		}
 
 		var user = models.User{
-			Id:          id.String(),
-			FirstName:   request.FirstName,
-			LastName:    request.LastName,
-			Username:    request.Username,
-			Email:       request.Email,
-			Password:    string(hashedPassword),
-			PhoneNumber: request.PhoneNumber,
-			Picture:     request.Picture,
-			Address:     request.Address,
-			IsActive:    true,
+			Id:            id.String(),
+			FirstName:     request.FirstName,
+			LastName:      request.LastName,
+			Username:      request.Username,
+			Email:         request.Email,
+			Password:      string(hashedPassword),
+			PhoneNumber:   request.PhoneNumber,
+			Picture:       request.Picture,
+			Address:       request.Address,
+			IsActive:      true,
+			VerifiedEmail: false,
 		}
 
 		u, err := repository.InsertUser(c.Request.Context(), &user)
@@ -140,6 +140,10 @@ func SignUpHandler(s server.Server) gin.HandlerFunc {
 func VerifiedEmailHandler(s server.Server) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := c.Query("token")
+		if token == "" {
+			HandleError(c, http.StatusBadRequest, errors.New("token is required"))
+			return
+		}
 
 		user, err := repository.GetUserByVerifiedEmailToken(c.Request.Context(), token)
 		if err != nil {
@@ -211,6 +215,51 @@ func ResetPasswordHandler(s server.Server) gin.HandlerFunc {
 	}
 }
 
+func ChangePasswordHandler(s server.Server) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var request = ChangePasswordRequest{}
+
+		err := c.BindJSON(&request)
+		if err != nil {
+			HandleError(c, http.StatusBadRequest, err)
+			return
+		}
+
+		token := c.Query("token")
+		if token == "" {
+			HandleError(c, http.StatusBadRequest, errors.New("token is required"))
+			return
+		}
+
+		user, err := repository.GetUserByPasswordResetToken(c.Request.Context(), token)
+		if err != nil {
+			HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		if time.Now().After(user.PasswordResetTokenExpiry) {
+			HandleError(c, http.StatusUnauthorized, errors.New("token expired"))
+			return
+		}
+
+		hashedPassword, err := utils.HashPassword(request.Password)
+		if err != nil {
+			HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		user.Password = string(hashedPassword)
+
+		_, err = repository.UpdateUser(c.Request.Context(), user.Id, user)
+		if err != nil {
+			HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		HandleSuccess(c, http.StatusOK, "ok", nil)
+	}
+}
+
 // LoginHandler handles the login request
 func LoginHandler(s server.Server) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -231,19 +280,7 @@ func LoginHandler(s server.Server) gin.HandlerFunc {
 				return
 			}
 
-			userRq = models.UserResponse{
-				Id:            user.Id,
-				FirstName:     user.FirstName,
-				LastName:      user.LastName,
-				Username:      user.Username,
-				Email:         user.Email,
-				Picture:       user.Picture,
-				Address:       user.Address,
-				PhoneNumber:   user.PhoneNumber,
-				Roles:         user.Roles,
-				IsActive:      user.IsActive,
-				VerifiedEmail: user.VerifiedEmail,
-			}
+			userRq = *GetUserResponse(user)
 		} else {
 			// Login with email and password
 			user, err := HandleEmailAndPasswordLogin(c, s, &request)
@@ -252,19 +289,7 @@ func LoginHandler(s server.Server) gin.HandlerFunc {
 				return
 			}
 
-			userRq = models.UserResponse{
-				Id:            user.Id,
-				FirstName:     user.FirstName,
-				LastName:      user.LastName,
-				Username:      user.Username,
-				Email:         user.Email,
-				Picture:       user.Picture,
-				Address:       user.Address,
-				PhoneNumber:   user.PhoneNumber,
-				Roles:         user.Roles,
-				IsActive:      user.IsActive,
-				VerifiedEmail: user.VerifiedEmail,
-			}
+			userRq = *GetUserResponse(user)
 		}
 
 		// Generate JWT token
@@ -303,7 +328,7 @@ func MeHandler(s server.Server) gin.HandlerFunc {
 			return
 		}
 
-		user, err := s.Redis().GetValue(claims.UserId)
+		user, err := s.Redis().GetUser(claims.UserId)
 		if err != nil {
 			log.Println(err)
 		}
@@ -315,16 +340,16 @@ func MeHandler(s server.Server) gin.HandlerFunc {
 				return
 			}
 
-			err = s.Redis().SetValue(user.Id, user)
+			err = s.Redis().SetUser(user.Id, user)
 			if err != nil {
 				log.Println(err)
 			}
 
-			HandleSuccess(c, http.StatusOK, "ok", user)
+			HandleSuccess(c, http.StatusOK, "ok", GetUserResponse(user))
 			return
 		}
 
-		HandleSuccess(c, http.StatusOK, "ok", user)
+		HandleSuccess(c, http.StatusOK, "ok", GetUserResponse(user))
 	}
 }
 
@@ -339,7 +364,7 @@ func UpdateUserHandler(s server.Server) gin.HandlerFunc {
 			return
 		}
 
-		var request = models.UserResponse{}
+		var request = models.User{}
 
 		err = c.BindJSON(&request)
 		if err != nil {
@@ -353,7 +378,7 @@ func UpdateUserHandler(s server.Server) gin.HandlerFunc {
 			return
 		}
 
-		HandleSuccess(c, http.StatusOK, "ok", user)
+		HandleSuccess(c, http.StatusOK, "ok", GetUserResponse(user))
 	}
 }
 
@@ -400,20 +425,20 @@ func UploadPictureHandler(s server.Server) gin.HandlerFunc {
 
 		user.Picture = fileUrl
 
-		u, err := repository.PartialUpdateUser(c.Request.Context(), id, user)
+		user, err = repository.PartialUpdateUser(c.Request.Context(), id, user)
 		if err != nil {
 			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		HandleSuccess(c, http.StatusOK, "ok", u)
+		HandleSuccess(c, http.StatusOK, "ok", GetUserResponse(user))
 	}
 }
 
 // ListUserHandler handles the list user request
 func ListUserHandler(s server.Server) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		users, err := s.Redis().GetValue("users")
+		users, err := s.Redis().GetUsers("users")
 		if err != nil {
 			log.Println(err)
 		}
@@ -425,15 +450,15 @@ func ListUserHandler(s server.Server) gin.HandlerFunc {
 				return
 			}
 
-			err = s.Redis().SetValue("users", users)
+			err = s.Redis().SetUsers("users", users)
 			if err != nil {
 				log.Println(err)
 			}
 
-			HandleSuccess(c, http.StatusOK, "ok", users)
+			HandleSuccess(c, http.StatusOK, "ok", GetUsersResponse(users))
 			return
 		}
 
-		HandleSuccess(c, http.StatusOK, "ok", users)
+		HandleSuccess(c, http.StatusOK, "ok", GetUsersResponse(users))
 	}
 }

@@ -16,6 +16,7 @@ var (
 		"signup",
 		"verify-email",
 		"reset-password",
+		"change-password",
 	}
 )
 

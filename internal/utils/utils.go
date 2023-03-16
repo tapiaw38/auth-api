@@ -6,6 +6,12 @@ import (
 	"math/rand"
 	"regexp"
 	"strconv"
+
+	"golang.org/x/crypto/bcrypt"
+)
+
+const (
+	HASH_COST = 8
 )
 
 var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -23,6 +29,12 @@ func RandomString(lenght int) string {
 func ValidateEmail(email string) bool {
 	regex := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
 	return regexp.MustCompile(regex).MatchString(email)
+}
+
+// ValidatePassword validates a password
+func ValidatePassword(password string) bool {
+	regex := `^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$`
+	return regexp.MustCompile(regex).MatchString(password)
 }
 
 // ConvertInterfaceToString converts an interface to a string
@@ -53,4 +65,14 @@ func GenerateToken() (string, error) {
 	token := hex.EncodeToString(tokenBytes)
 
 	return token, nil
+}
+
+// HashPassword hashes a password
+func HashPassword(password string) ([]byte, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), HASH_COST)
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes, nil
 }

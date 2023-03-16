@@ -3,7 +3,6 @@ package router
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/tapiaw38/auth-api/internal/handlers"
-	"github.com/tapiaw38/auth-api/internal/middleware"
 	"github.com/tapiaw38/auth-api/internal/server"
 )
 
@@ -15,9 +14,10 @@ func BinderRoutes(s server.Server, router *gin.Engine) {
 	authRoute.POST("login", handlers.LoginHandler(s))
 	authRoute.GET("verify-email", handlers.VerifiedEmailHandler(s))
 	authRoute.POST("reset-password", handlers.ResetPasswordHandler(s))
+	authRoute.POST("change-password", handlers.ChangePasswordHandler(s))
 
 	// mount the middleware
-	router.Use(middleware.CheckAuthMiddleware(s))
+	//router.Use(middleware.CheckAuthMiddleware(s))
 
 	// User routes
 	userRoute := router.Group("/users/")
