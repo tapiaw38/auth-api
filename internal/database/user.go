@@ -471,7 +471,7 @@ func (ur *PostgresRepository) PartialUpdateUser(ctx context.Context, id string, 
 }
 
 // GetUsers returns all users
-func (repository *PostgresRepository) ListUser(ctx context.Context) ([]*models.User, error) {
+func (repository *PostgresRepository) ListUser(ctx context.Context, limit int, page int) ([]*models.User, error) {
 
 	q := `
 	SELECT id, first_name, last_name, username, 
@@ -481,9 +481,11 @@ func (repository *PostgresRepository) ListUser(ctx context.Context) ([]*models.U
 		password_reset_token_expiry,
 		created_at, updated_at
 	FROM users
+	ORDER BY created_at DESC
+	LIMIT $1 OFFSET $2;
 	`
 
-	rows, err := repository.db.QueryContext(ctx, q)
+	rows, err := repository.db.QueryContext(ctx, q, limit, (page-1)*limit)
 
 	defer func() {
 		err = rows.Close()

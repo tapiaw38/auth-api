@@ -16,7 +16,7 @@ type Repository interface {
 	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
 	UpdateUser(ctx context.Context, id string, user *models.User) (*models.User, error)
 	PartialUpdateUser(ctx context.Context, id string, user *models.User) (*models.User, error)
-	ListUser(ctx context.Context) ([]*models.User, error)
+	ListUser(ctx context.Context, page int, limit int) ([]*models.User, error)
 	// Role
 	EnsureRole() error
 	InsertRole(ctx context.Context, role *models.Role) (*models.Role, error)

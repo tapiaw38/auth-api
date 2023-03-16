@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -438,13 +439,19 @@ func UploadPictureHandler(s server.Server) gin.HandlerFunc {
 // ListUserHandler handles the list user request
 func ListUserHandler(s server.Server) gin.HandlerFunc {
 	return func(c *gin.Context) {
+
+		limit := c.Query("limit")
+		offset := c.Query("offset")
+		limitInt, _ := strconv.Atoi(limit)
+		offsetInt, _ := strconv.Atoi(offset)
+
 		users, err := s.Redis().GetUsers("users")
 		if err != nil {
 			log.Println(err)
 		}
 
 		if users == nil {
-			users, err := repository.ListUser(c.Request.Context())
+			users, err := repository.ListUser(c.Request.Context(), limitInt, offsetInt)
 			if err != nil {
 				HandleError(c, http.StatusInternalServerError, err)
 				return

@@ -34,8 +34,8 @@ func PartialUpdateUser(ctx context.Context, id string, user *models.User) (*mode
 	return implementation.PartialUpdateUser(ctx, id, user)
 }
 
-func ListUser(ctx context.Context) ([]*models.User, error) {
-	return implementation.ListUser(ctx)
+func ListUser(ctx context.Context, page int, limit int) ([]*models.User, error) {
+	return implementation.ListUser(ctx, page, limit)
 }
 
 func Close() error {

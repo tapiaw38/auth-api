@@ -10,9 +10,9 @@ CREATE TABLE IF NOT EXISTS users (
     address VARCHAR(255),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     verified_email BOOLEAN NOT NULL DEFAULT FALSE,
-    verified_email_token VARCHAR(255) UNIQUE NOT NULL DEFAULT '',
+    verified_email_token VARCHAR(255) UNIQUE,
     verified_email_token_expiry TIMESTAMP NOT NULL DEFAULT NOW(),
-    password_reset_token VARCHAR(255) UNIQUE NOT NULL DEFAULT '',
+    password_reset_token VARCHAR(255) UNIQUE,
     password_reset_token_expiry TIMESTAMP NOT NULL DEFAULT NOW(),
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL
