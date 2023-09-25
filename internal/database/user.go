@@ -13,7 +13,7 @@ func (repository *PostgresRepository) InsertUser(ctx context.Context, user *mode
 	q := `
 		INSERT INTO users (
 			id, first_name, last_name, username, email, 
-			password, phone_number, picture, address, 
+			password, phone_number, picture, address,
 			is_active, verified_email, 
 			created_at, updated_at
 		) 

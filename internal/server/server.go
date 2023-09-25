@@ -17,32 +17,30 @@ import (
 
 // Config is the server configuration
 type Config struct {
-	GinMode              string
-	Port                 string
-	JWTSecret            string
-	DatabaseURL          string
-	Host                 string
-	AWSRegion            string
-	AWSAccessKeyID       string
-	AWSSecretAccessKey   string
-	AWSBucket            string
-	RedisHost            string
-	RedisPassword        string
-	RedisDB              int
-	RedisExpires         time.Duration
-	GoogleClientID       string
-	GoogleClientSecret   string
-	FrontendURL          string
-	EmailHost            string
-	EmailPort            string
-	EmailHostUser        string
-	EmailHostPassword    string
-	MailgunDomain        string
-	MailgunPrivateAPIKey string
-	RabbitMQHost         string
-	RabbitMQPort         string
-	RabbitMQUser         string
-	RabbitMQPassword     string
+	GinMode            string
+	Port               string
+	JWTSecret          string
+	DatabaseURL        string
+	Host               string
+	AWSRegion          string
+	AWSAccessKeyID     string
+	AWSSecretAccessKey string
+	AWSBucket          string
+	RedisHost          string
+	RedisPassword      string
+	RedisDB            int
+	RedisExpires       time.Duration
+	GoogleClientID     string
+	GoogleClientSecret string
+	FrontendURL        string
+	EmailHost          string
+	EmailPort          string
+	EmailHostUser      string
+	EmailHostPassword  string
+	RabbitMQHost       string
+	RabbitMQPort       string
+	RabbitMQUser       string
+	RabbitMQPassword   string
 }
 
 // Server is the server interface
@@ -51,21 +49,19 @@ type Server interface {
 	S3() *utils.S3Client
 	Google() *sso.GoogleClient
 	Mail() *utils.EmailSMTPConfig
-	Mailgun() *utils.MailgunConfig
 	Redis() *cache.RedisCache
 	Rabbit() *rabbitmq.RabbitMQConfig
 }
 
 // Broker is the server broker
 type Broker struct {
-	config  *Config
-	engine  *gin.Engine
-	s3      *utils.S3Client
-	google  *sso.GoogleClient
-	mail    *utils.EmailSMTPConfig
-	mailgun *utils.MailgunConfig
-	redis   *cache.RedisCache
-	rabbit  *rabbitmq.RabbitMQConfig
+	config *Config
+	engine *gin.Engine
+	s3     *utils.S3Client
+	google *sso.GoogleClient
+	mail   *utils.EmailSMTPConfig
+	redis  *cache.RedisCache
+	rabbit *rabbitmq.RabbitMQConfig
 }
 
 // Config returns the server configuration
@@ -86,11 +82,6 @@ func (b *Broker) Google() *sso.GoogleClient {
 // Mail returns the mail client
 func (b *Broker) Mail() *utils.EmailSMTPConfig {
 	return b.mail
-}
-
-// Mailgun returns the mailgun client
-func (b *Broker) Mailgun() *utils.MailgunConfig {
-	return b.mailgun
 }
 
 // Redis returns the redis client
@@ -136,10 +127,6 @@ func NewServer(config *Config) (*Broker, error) {
 			Port:         config.EmailPort,
 			HostUser:     config.EmailHostUser,
 			HostPassword: config.EmailHostPassword,
-		}),
-		mailgun: utils.NewMailgunConfig(&utils.MailgunConfig{
-			Domain:        config.MailgunDomain,
-			PrivateAPIKey: config.MailgunPrivateAPIKey,
 		}),
 		redis: cache.NewRedisCache(&cache.RedisCache{
 			Host:     config.RedisHost,

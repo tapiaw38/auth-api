@@ -14,7 +14,7 @@ vendor/
 .idea/
 .vscode/
 .DS_Store
-.env
+# .env
 
 # Ignore database files
 *.sql
