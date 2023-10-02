@@ -39,5 +39,11 @@ COPY --from=builder /app/main .
 # Expose port 8080 to the outside world
 EXPOSE 8080
 
-# Run the executable
-CMD ["./main"]
+# Copy the entrypoint script into the container
+COPY entrypoint.sh .
+
+# Make the entrypoint script executable
+RUN chmod +x entrypoint.sh
+
+# Set the entrypoint to wait for PostgreSQL and RabbitMQ and then run the executable
+ENTRYPOINT ["./entrypoint.sh"]

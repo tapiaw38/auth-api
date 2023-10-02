@@ -45,30 +45,14 @@ services:
       retries: 5
   api:
     container_name: "api"
-    build: .
-    environment:
-      # postgres
-      - DB_HOST=database
-      - DB_PORT=${DB_PORT}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
-      - DATABASE_URL=${DATABASE_URL}
-      # Redis
-      - REDIS_PORT=${REDIS_PORT}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      # api
-      - PORT=${PORT}
-      - JWT_SECRET=${JWT_SECRET}
-      # AWS S3
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_REGION=${AWS_REGION}
-      - AWS_BUCKET=${AWS_BUCKET}
+    build:
+      context: .
+      dockerfile: ./deployment/production/Dockerfile
     ports:
       - ${PORT}:8000
     depends_on:
       - database
+      - rabbitmq
       - redis
       - caddy
     networks:

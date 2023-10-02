@@ -30,6 +30,10 @@ func UpdateUser(ctx context.Context, id string, user *models.User) (*models.User
 	return implementation.UpdateUser(ctx, id, user)
 }
 
+func UpdateUserProfile(ctx context.Context, id string, userProfile *models.UserProfile) (*models.User, error) {
+	return implementation.UpdateUserProfile(ctx, id, userProfile)
+}
+
 func PartialUpdateUser(ctx context.Context, id string, user *models.User) (*models.User, error) {
 	return implementation.PartialUpdateUser(ctx, id, user)
 }

@@ -365,7 +365,7 @@ func UpdateUserHandler(s server.Server) gin.HandlerFunc {
 			return
 		}
 
-		var request = models.User{}
+		var request = models.UserProfile{}
 
 		err = c.BindJSON(&request)
 		if err != nil {
@@ -373,7 +373,7 @@ func UpdateUserHandler(s server.Server) gin.HandlerFunc {
 			return
 		}
 
-		user, err := repository.UpdateUser(c.Request.Context(), claims.UserId, &request)
+		user, err := repository.UpdateUserProfile(c.Request.Context(), claims.UserId, &request)
 		if err != nil {
 			HandleError(c, http.StatusInternalServerError, err)
 			return

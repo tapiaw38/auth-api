@@ -178,7 +178,7 @@ func HandleGoogleLogin(c *gin.Context, s server.Server, request *SignUpLoginRequ
 			VerifiedEmail: userInfo.VerifiedEmail,
 		}
 
-		user, err = repository.UpdateUser(c.Request.Context(), user.Id, &userUpdate)
+		user, err = repository.PartialUpdateUser(c.Request.Context(), user.Id, &userUpdate)
 		if err != nil {
 			return nil, err
 		}

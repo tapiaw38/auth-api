@@ -21,5 +21,11 @@ RUN apk update && apk add --no-cache postgresql-client curl && \
 # Expose port 8080 to the outside world
 EXPOSE 8080
 
-# Run the Go application
-CMD ["go", "run", "cmd/main.go", "--host", "0.0.0.0"]
+# Copy the entrypoint script into the container
+COPY entrypoint.sh .
+
+# Make the entrypoint script executable
+RUN chmod +x entrypoint.sh
+
+# Set the entrypoint to wait for PostgreSQL and RabbitMQ and then run the executable
+ENTRYPOINT ["./entrypoint.sh"]

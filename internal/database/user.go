@@ -384,6 +384,65 @@ func (ur *PostgresRepository) UpdateUser(ctx context.Context, id string, user *m
 	return u, nil
 }
 
+func (ur *PostgresRepository) UpdateUserProfile(ctx context.Context, id string, userProfile *models.UserProfile) (*models.User, error) {
+	q := `
+	UPDATE users
+		SET
+			first_name = $1, last_name = $2, email = $3,
+			phone_number = $4, address = $5, updated_at = $6
+		WHERE id = $7
+		RETURNING id, first_name, last_name, username,
+			email, password, phone_number, picture, address,
+			is_active, verified_email, verified_email_token,
+			verified_email_token_expiry, password_reset_token,
+			password_reset_token_expiry,
+			created_at, updated_at;
+	`
+
+	row := ur.db.QueryRowContext(
+		ctx, q, userProfile.FirstName, userProfile.LastName,
+		userProfile.Email, userProfile.PhoneNumber, userProfile.Address,
+		time.Now(), id,
+	)
+
+	u, err := ScanRowUser(row)
+	if err != nil {
+		return &models.User{}, err
+	}
+
+	q = `
+			SELECT roles.id, roles.name
+			FROM roles
+			INNER JOIN user_roles
+			ON roles.id = user_roles.role_id
+			WHERE user_roles.user_id = $1;
+		`
+
+	rows, err := ur.db.QueryContext(ctx, q, u.Id)
+
+	defer func() {
+		err = rows.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	for rows.Next() {
+		role, err := ScanRowRole(rows)
+		if err != nil {
+			return nil, err
+		}
+
+		u.Roles = append(u.Roles, *role)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return u, nil
+}
+
 // PartialUpdateUser updates a user in the database
 func (ur *PostgresRepository) PartialUpdateUser(ctx context.Context, id string, user *models.User) (*models.User, error) {
 

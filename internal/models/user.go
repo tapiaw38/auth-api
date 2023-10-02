@@ -42,3 +42,13 @@ type UserResponse struct {
 	CreatedAt     time.Time `json:"created_at,omitempty"`
 	UpdatedAt     time.Time `json:"updated_at,omitempty"`
 }
+
+type UserProfile struct {
+	FirstName   string `json:"first_name,omitempty"`
+	LastName    string `json:"last_name,omitempty"`
+	Username    string `json:"username,omitempty"`
+	Email       string `json:"email,omitempty"`
+	PhoneNumber string `json:"phone_number,omitempty"`
+	Address     string `json:"address,omitempty"`
+	UpdatedAt   string `json:"updated_at,omitempty"`
+}
