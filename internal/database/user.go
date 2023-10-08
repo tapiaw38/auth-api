@@ -3,6 +3,8 @@ package database
 import (
 	"context"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/tapiaw38/auth-api/internal/models"
@@ -41,10 +43,71 @@ func (repository *PostgresRepository) InsertUser(ctx context.Context, user *mode
 	return u, nil
 }
 
+// updateUserRoles updates the roles of a user
+func (ur *PostgresRepository) updateUserRoles(ctx context.Context, u *models.User) error {
+	q := `
+		SELECT roles.id, roles.name
+		FROM roles
+		INNER JOIN user_roles
+		ON roles.id = user_roles.role_id
+		WHERE user_roles.user_id = $1;
+	`
+
+	rows, err := ur.db.QueryContext(ctx, q, u.Id)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	u.Roles = nil // Limpiamos los roles actuales antes de actualizarlos
+
+	for rows.Next() {
+		role, err := ScanRowRole(rows)
+		if err != nil {
+			return err
+		}
+		u.Roles = append(u.Roles, *role)
+	}
+
+	return rows.Err()
+}
+
+// getUserByQuery returns a user by executing the given query
+func (repository *PostgresRepository) getUserByQuery(ctx context.Context, query string, args ...interface{}) (*models.User, error) {
+	rows, err := repository.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		err = rows.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	var user *models.User
+
+	for rows.Next() {
+		user, err = ScanRowUser(rows)
+		if err != nil {
+			return nil, err
+		}
+
+		if err = repository.updateUserRoles(ctx, user); err != nil {
+			return nil, err
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
 // GetUserById returns a user by id
 func (repository *PostgresRepository) GetUserById(ctx context.Context, id string) (*models.User, error) {
-
-	q := `
+	query := `
 		SELECT id, first_name, last_name, username, 
 			email, password, phone_number, picture, address, 
 			is_active, verified_email, verified_email_token,
@@ -55,65 +118,12 @@ func (repository *PostgresRepository) GetUserById(ctx context.Context, id string
 		WHERE id = $1;
 	`
 
-	rows, err := repository.db.QueryContext(ctx, q, id)
-
-	defer func() {
-		err = rows.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	var user *models.User
-
-	for rows.Next() {
-		user, err = ScanRowUser(rows)
-		if err != nil {
-			return nil, err
-		}
-
-		q := `
-			SELECT roles.id, roles.name
-			FROM roles
-			INNER JOIN user_roles
-			ON roles.id = user_roles.role_id
-			WHERE user_roles.user_id = $1;
-		`
-
-		rows, err = repository.db.QueryContext(ctx, q, user.Id)
-
-		defer func() {
-			err = rows.Close()
-			if err != nil {
-				log.Fatal(err)
-			}
-		}()
-
-		for rows.Next() {
-			role, err := ScanRowRole(rows)
-			if err != nil {
-				return nil, err
-			}
-
-			user.Roles = append(user.Roles, *role)
-		}
-
-		if err = rows.Err(); err != nil {
-			return nil, err
-		}
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return user, nil
+	return repository.getUserByQuery(ctx, query, id)
 }
 
 // GetUserByVerifiedEmailToken returns a user by verified email token
 func (repository *PostgresRepository) GetUserByVerifiedEmailToken(ctx context.Context, token string) (*models.User, error) {
-
-	q := `
+	query := `
 		SELECT id, first_name, last_name, username, 
 			email, password, phone_number, picture, address, 
 			is_active, verified_email, verified_email_token,
@@ -124,66 +134,12 @@ func (repository *PostgresRepository) GetUserByVerifiedEmailToken(ctx context.Co
 		WHERE verified_email_token = $1;
 	`
 
-	rows, err := repository.db.QueryContext(ctx, q, token)
-
-	defer func() {
-		err = rows.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	var user *models.User
-
-	for rows.Next() {
-
-		user, err = ScanRowUser(rows)
-		if err != nil {
-			return nil, err
-		}
-
-		q := `
-			SELECT roles.id, roles.name
-			FROM roles
-			INNER JOIN user_roles
-			ON roles.id = user_roles.role_id
-			WHERE user_roles.user_id = $1;
-		`
-
-		rows, err = repository.db.QueryContext(ctx, q, user.Id)
-
-		defer func() {
-			err = rows.Close()
-			if err != nil {
-				log.Fatal(err)
-			}
-		}()
-
-		for rows.Next() {
-			role, err := ScanRowRole(rows)
-			if err != nil {
-				return nil, err
-			}
-
-			user.Roles = append(user.Roles, *role)
-		}
-
-		if err = rows.Err(); err != nil {
-			return nil, err
-		}
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return user, nil
+	return repository.getUserByQuery(ctx, query, token)
 }
 
-// GetUserByVerifiedEmailToken returns a user by verified email token
+// GetUserByPasswordResetToken returns a user by password reset token
 func (repository *PostgresRepository) GetUserByPasswordResetToken(ctx context.Context, token string) (*models.User, error) {
-
-	q := `
+	query := `
 		SELECT id, first_name, last_name, username, email, 
 			password, phone_number, picture, address, 
 			is_active, verified_email, verified_email_token, 
@@ -193,66 +149,12 @@ func (repository *PostgresRepository) GetUserByPasswordResetToken(ctx context.Co
 		WHERE password_reset_token = $1;
 	`
 
-	rows, err := repository.db.QueryContext(ctx, q, token)
-
-	defer func() {
-		err = rows.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	var user *models.User
-
-	for rows.Next() {
-
-		user, err = ScanRowUser(rows)
-		if err != nil {
-			return nil, err
-		}
-
-		q := `
-			SELECT roles.id, roles.name
-			FROM roles
-			INNER JOIN user_roles
-			ON roles.id = user_roles.role_id
-			WHERE user_roles.user_id = $1;
-		`
-
-		rows, err = repository.db.QueryContext(ctx, q, user.Id)
-
-		defer func() {
-			err = rows.Close()
-			if err != nil {
-				log.Fatal(err)
-			}
-		}()
-
-		for rows.Next() {
-			role, err := ScanRowRole(rows)
-			if err != nil {
-				return nil, err
-			}
-
-			user.Roles = append(user.Roles, *role)
-		}
-
-		if err = rows.Err(); err != nil {
-			return nil, err
-		}
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return user, nil
+	return repository.getUserByQuery(ctx, query, token)
 }
 
 // GetUserByEmail returns a user by email
 func (repository *PostgresRepository) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
-
-	q := `
+	query := `
 		SELECT id, first_name, last_name, username, email, 
 			password, phone_number, picture, address, 
 			is_active, verified_email, verified_email_token, 
@@ -262,65 +164,13 @@ func (repository *PostgresRepository) GetUserByEmail(ctx context.Context, email 
 		WHERE email = $1;
 	`
 
-	rows, err := repository.db.QueryContext(ctx, q, email)
-
-	defer func() {
-		err = rows.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	var user *models.User
-
-	for rows.Next() {
-		user, err = ScanRowUser(rows)
-		if err != nil {
-			return nil, err
-		}
-
-		q := `
-			SELECT roles.id, roles.name
-			FROM roles
-			INNER JOIN user_roles
-			ON roles.id = user_roles.role_id
-			WHERE user_roles.user_id = $1;
-		`
-
-		rows, err = repository.db.QueryContext(ctx, q, user.Id)
-
-		defer func() {
-			err = rows.Close()
-			if err != nil {
-				log.Fatal(err)
-			}
-		}()
-
-		for rows.Next() {
-			role, err := ScanRowRole(rows)
-			if err != nil {
-				return nil, err
-			}
-
-			user.Roles = append(user.Roles, *role)
-		}
-
-		if err = rows.Err(); err != nil {
-			return nil, err
-		}
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return user, nil
+	return repository.getUserByQuery(ctx, query, email)
 }
 
 // UpdateUser updates a user in the database
 func (ur *PostgresRepository) UpdateUser(ctx context.Context, id string, user *models.User) (*models.User, error) {
 	q := `
-	UPDATE users
+		UPDATE users
 		SET 
 			first_name = $1, last_name = $2, email = $3,
 			password = $4, picture = $5, phone_number = $6, 
@@ -348,181 +198,69 @@ func (ur *PostgresRepository) UpdateUser(ctx context.Context, id string, user *m
 
 	u, err := ScanRowUser(row)
 	if err != nil {
-		return &models.User{}, err
+		return nil, err
 	}
 
-	q = `
-			SELECT roles.id, roles.name
-			FROM roles
-			INNER JOIN user_roles
-			ON roles.id = user_roles.role_id
-			WHERE user_roles.user_id = $1;
-		`
-
-	rows, err := ur.db.QueryContext(ctx, q, u.Id)
-
-	defer func() {
-		err = rows.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	for rows.Next() {
-		role, err := ScanRowRole(rows)
-		if err != nil {
-			return nil, err
-		}
-
-		u.Roles = append(u.Roles, *role)
-	}
-
-	if err = rows.Err(); err != nil {
+	if err := ur.updateUserRoles(ctx, u); err != nil {
 		return nil, err
 	}
 
 	return u, nil
 }
 
-func (ur *PostgresRepository) UpdateUserProfile(ctx context.Context, id string, userProfile *models.UserProfile) (*models.User, error) {
-	q := `
-	UPDATE users
-		SET
-			first_name = $1, last_name = $2, email = $3,
-			phone_number = $4, address = $5, updated_at = $6
-		WHERE id = $7
-		RETURNING id, first_name, last_name, username,
-			email, password, phone_number, picture, address,
-			is_active, verified_email, verified_email_token,
-			verified_email_token_expiry, password_reset_token,
-			password_reset_token_expiry,
-			created_at, updated_at;
-	`
-
-	row := ur.db.QueryRowContext(
-		ctx, q, userProfile.FirstName, userProfile.LastName,
-		userProfile.Email, userProfile.PhoneNumber, userProfile.Address,
-		time.Now(), id,
-	)
-
-	u, err := ScanRowUser(row)
+// PartialUpdateUser partially updates a user in the database
+func (ur *PostgresRepository) PartialUpdateUser(ctx context.Context, id string, updates map[string]interface{}) (*models.User, error) {
+	// Comienza una transacción
+	tx, err := ur.db.BeginTx(ctx, nil)
 	if err != nil {
-		return &models.User{}, err
-	}
-
-	q = `
-			SELECT roles.id, roles.name
-			FROM roles
-			INNER JOIN user_roles
-			ON roles.id = user_roles.role_id
-			WHERE user_roles.user_id = $1;
-		`
-
-	rows, err := ur.db.QueryContext(ctx, q, u.Id)
-
-	defer func() {
-		err = rows.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	for rows.Next() {
-		role, err := ScanRowRole(rows)
-		if err != nil {
-			return nil, err
-		}
-
-		u.Roles = append(u.Roles, *role)
-	}
-
-	if err = rows.Err(); err != nil {
 		return nil, err
 	}
+	defer tx.Rollback()
 
-	return u, nil
-}
+	// Construye la consulta de actualización dinámicamente
+	updateFields := []string{}
+	values := []interface{}{}
 
-// PartialUpdateUser updates a user in the database
-func (ur *PostgresRepository) PartialUpdateUser(ctx context.Context, id string, user *models.User) (*models.User, error) {
+	for field, value := range updates {
+		if value != nil {
+			updateFields = append(updateFields, field+" = $"+strconv.Itoa(len(values)+1))
+			values = append(values, value)
+		}
+	}
+
+	// Agregar el id al final de los valores
+	values = append(values, id)
+
+	if len(updateFields) == 0 {
+		// No se realizaron actualizaciones
+		return nil, nil
+	}
 
 	q := `
-	UPDATE users
-		SET 
-			first_name = CASE WHEN $1 = '' THEN first_name ELSE $1 END, 
-			last_name = CASE WHEN $2 = '' THEN last_name ELSE $2 END, 
-			email = CASE WHEN $3 = '' THEN email ELSE $3 END,
-			phone_number = CASE WHEN $4 = '' THEN phone_number ELSE $4 END,
-			picture = CASE WHEN $5 = '' THEN picture ELSE $5 END,
-			address = CASE WHEN $6 = '' THEN address ELSE $6 END,
-			is_active = 
-				CASE 
-					WHEN $7 = TRUE AND is_active = FALSE THEN TRUE 
-					WHEN $7 = FALSE AND is_active = TRUE THEN FALSE
-					WHEN $7 = NULL THEN is_active
-					ELSE is_active
-				END,
-			verified_email =
-				CASE
-					WHEN $8 = TRUE AND verified_email = FALSE THEN TRUE
-					WHEN $8 = FALSE AND verified_email = TRUE THEN FALSE
-					WHEN $8 = NULL THEN verified_email
-					ELSE verified_email
-				END,
-			verified_email_token = CASE WHEN $9 = '' THEN verified_email_token ELSE $9 END,
-			verified_email_token_expiry = $10,
-			password_reset_token = CASE WHEN $11 = '' THEN password_reset_token ELSE $11 END,
-			password_reset_token_expiry = $12,
-			updated_at = $13
-		WHERE id = $14
-		RETURNING id, first_name, last_name, username, email, 
-			password, phone_number, picture, address, 
+		UPDATE users
+		SET ` + strings.Join(updateFields, ", ") + `
+		WHERE id = $` + strconv.Itoa(len(values)) + `
+		RETURNING id, first_name, last_name, username, email,
+			password, phone_number, picture, address,
 			is_active, verified_email, verified_email_token,
 			verified_email_token_expiry, password_reset_token,
 			password_reset_token_expiry,
 			created_at, updated_at
 	`
-	row := ur.db.QueryRowContext(
-		ctx, q, user.FirstName, user.LastName, user.Email,
-		user.PhoneNumber, user.Picture, user.Address,
-		user.IsActive, user.VerifiedEmail, user.VerifiedEmailToken,
-		user.VerifiedEmailTokenExpiry, user.PasswordResetToken,
-		user.PasswordResetTokenExpiry,
-		time.Now(), id,
-	)
+
+	row := tx.QueryRowContext(ctx, q, values...)
 
 	u, err := ScanRowUser(row)
 	if err != nil {
-		return &models.User{}, err
+		return nil, err
 	}
 
-	q = `
-			SELECT roles.id, roles.name
-			FROM roles
-			INNER JOIN user_roles
-			ON roles.id = user_roles.role_id
-			WHERE user_roles.user_id = $1;
-		`
-
-	rows, err := ur.db.QueryContext(ctx, q, u.Id)
-
-	defer func() {
-		err = rows.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	for rows.Next() {
-		role, err := ScanRowRole(rows)
-		if err != nil {
-			return nil, err
-		}
-
-		u.Roles = append(u.Roles, *role)
+	if err := ur.updateUserRoles(ctx, u); err != nil {
+		return nil, err
 	}
 
-	if err = rows.Err(); err != nil {
+	// Commit la transacción
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 
@@ -562,33 +300,8 @@ func (repository *PostgresRepository) ListUser(ctx context.Context, limit int, p
 			return nil, err
 		}
 
-		q = `
-			SELECT roles.id, roles.name
-			FROM roles
-			INNER JOIN user_roles
-			ON roles.id = user_roles.role_id
-			WHERE user_roles.user_id = $1;
-		`
-
-		rows, err := repository.db.QueryContext(ctx, q, user.Id)
-
-		defer func() {
-			err = rows.Close()
-			if err != nil {
-				log.Fatal(err)
-			}
-		}()
-
-		for rows.Next() {
-			role, err := ScanRowRole(rows)
-			if err != nil {
-				return nil, err
-			}
-
-			user.Roles = append(user.Roles, *role)
-		}
-
-		if err = rows.Err(); err != nil {
+		err = repository.updateUserRoles(ctx, user)
+		if err != nil {
 			return nil, err
 		}
 

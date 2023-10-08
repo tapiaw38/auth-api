@@ -8,7 +8,7 @@ LABEL maintainer="tapiaw38 Singh <tapiaw38@gmail.com>"
 WORKDIR /app
 
 # Copy go mod and sum files
-COPY . /app/
+COPY go.mod go.sum /app/
 
 # Download all dependencies. Dependencies will be cached if the go.mod and go.sum files are not changed
 RUN go mod download
@@ -17,6 +17,9 @@ RUN go mod download
 RUN apk update && apk add --no-cache postgresql-client curl && \
     curl -L -o /usr/local/bin/migrate https://github.com/golang-migrate/migrate/releases/download/v4.15.0/migrate.linux-amd64.tar.gz && \
     chmod +x /usr/local/bin/migrate
+
+# Copy the rest of the application code
+COPY . /app/
 
 # Expose port 8080 to the outside world
 EXPOSE 8080

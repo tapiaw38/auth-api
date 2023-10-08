@@ -47,14 +47,13 @@ func SaveVerifiedEmailToken(ctx context.Context, user *models.User, token string
 	user.VerifiedEmailToken = token
 	user.VerifiedEmailTokenExpiry = time.Now().Add(time.Hour * 48)
 
-	userResponse := models.User{
-		VerifiedEmailToken:       user.VerifiedEmailToken,
-		VerifiedEmailTokenExpiry: user.VerifiedEmailTokenExpiry,
-		IsActive:                 user.IsActive,
-		VerifiedEmail:            user.VerifiedEmail,
+	updates := map[string]interface{}{
+		"verified_email_token":        user.VerifiedEmailToken,
+		"verified_email_token_expiry": user.VerifiedEmailTokenExpiry,
+		"updated_at":                  time.Now(),
 	}
 
-	_, err := repository.PartialUpdateUser(ctx, user.Id, &userResponse)
+	_, err := repository.PartialUpdateUser(ctx, user.Id, updates)
 	if err != nil {
 		return err
 	}
@@ -68,14 +67,13 @@ func SavePasswordResetToken(ctx context.Context, user *models.User, token string
 	user.PasswordResetToken = token
 	user.PasswordResetTokenExpiry = time.Now().Add(time.Hour * 24)
 
-	userResponse := models.User{
-		PasswordResetToken:       user.PasswordResetToken,
-		PasswordResetTokenExpiry: user.PasswordResetTokenExpiry,
-		IsActive:                 user.IsActive,
-		VerifiedEmail:            user.VerifiedEmail,
+	updates := map[string]interface{}{
+		"password_reset_token":        user.PasswordResetToken,
+		"password_reset_token_expiry": user.PasswordResetTokenExpiry,
+		"updated_at":                  time.Now(),
 	}
 
-	_, err := repository.PartialUpdateUser(ctx, user.Id, &userResponse)
+	_, err := repository.PartialUpdateUser(ctx, user.Id, updates)
 	if err != nil {
 		return err
 	}
@@ -174,11 +172,16 @@ func HandleGoogleLogin(c *gin.Context, s server.Server, request *SignUpLoginRequ
 	if user.Picture == "" || !user.VerifiedEmail {
 		userUpdate := models.User{
 			Picture:       userInfo.Picture,
-			IsActive:      user.IsActive,
 			VerifiedEmail: userInfo.VerifiedEmail,
 		}
 
-		user, err = repository.PartialUpdateUser(c.Request.Context(), user.Id, &userUpdate)
+		updates := map[string]interface{}{
+			"picture":        userUpdate.Picture,
+			"verified_email": userUpdate.VerifiedEmail,
+			"updated_at":     time.Now(),
+		}
+
+		user, err = repository.PartialUpdateUser(c.Request.Context(), user.Id, updates)
 		if err != nil {
 			return nil, err
 		}
@@ -190,7 +193,7 @@ func HandleGoogleLogin(c *gin.Context, s server.Server, request *SignUpLoginRequ
 }
 
 // HandleEmailAndPasswordLogin handles the email and password login request
-func HandleEmailAndPasswordLogin(c *gin.Context, s server.Server, request *SignUpLoginRequest) (*models.User, error) {
+func HandleEmailAndPasswordLogin(c *gin.Context, request *SignUpLoginRequest) (*models.User, error) {
 
 	user, err := repository.GetUserByEmail(c.Request.Context(), request.Email)
 	if err != nil {

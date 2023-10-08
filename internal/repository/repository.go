@@ -15,8 +15,7 @@ type Repository interface {
 	GetUserByPasswordResetToken(ctx context.Context, token string) (*models.User, error)
 	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
 	UpdateUser(ctx context.Context, id string, user *models.User) (*models.User, error)
-	UpdateUserProfile(ctx context.Context, id string, userProfile *models.UserProfile) (*models.User, error)
-	PartialUpdateUser(ctx context.Context, id string, user *models.User) (*models.User, error)
+	PartialUpdateUser(ctx context.Context, id string, updates map[string]interface{}) (*models.User, error)
 	ListUser(ctx context.Context, page int, limit int) ([]*models.User, error)
 	// Role
 	EnsureRole() error

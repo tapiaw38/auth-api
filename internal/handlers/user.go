@@ -284,7 +284,7 @@ func LoginHandler(s server.Server) gin.HandlerFunc {
 			userRq = *GetUserResponse(user)
 		} else {
 			// Login with email and password
-			user, err := HandleEmailAndPasswordLogin(c, s, &request)
+			user, err := HandleEmailAndPasswordLogin(c, &request)
 			if err != nil {
 				HandleError(c, http.StatusInternalServerError, err)
 				return
@@ -365,7 +365,7 @@ func UpdateUserHandler(s server.Server) gin.HandlerFunc {
 			return
 		}
 
-		var request = models.UserProfile{}
+		var request = models.User{}
 
 		err = c.BindJSON(&request)
 		if err != nil {
@@ -373,7 +373,16 @@ func UpdateUserHandler(s server.Server) gin.HandlerFunc {
 			return
 		}
 
-		user, err := repository.UpdateUserProfile(c.Request.Context(), claims.UserId, &request)
+		updates := map[string]interface{}{
+			"first_name":   request.FirstName,
+			"last_name":    request.LastName,
+			"username":     request.Username,
+			"email":        request.Email,
+			"phone_number": request.PhoneNumber,
+			"address":      request.Address,
+		}
+
+		user, err := repository.PartialUpdateUser(c.Request.Context(), claims.UserId, updates)
 		if err != nil {
 			HandleError(c, http.StatusInternalServerError, err)
 			return
@@ -426,7 +435,12 @@ func UploadPictureHandler(s server.Server) gin.HandlerFunc {
 
 		user.Picture = fileUrl
 
-		user, err = repository.PartialUpdateUser(c.Request.Context(), id, user)
+		updates := map[string]interface{}{
+			"picture":    fileUrl,
+			"updated_at": time.Now(),
+		}
+
+		user, err = repository.PartialUpdateUser(c.Request.Context(), id, updates)
 		if err != nil {
 			HandleError(c, http.StatusInternalServerError, err)
 			return
