@@ -201,7 +201,7 @@ func HandleEmailAndPasswordLogin(c *gin.Context, request *SignUpLoginRequest) (*
 	}
 
 	if user == nil {
-		return nil, errors.New("invalid credentials")
+		return nil, errors.New("user not found")
 	}
 
 	if err = ComparePassword(request.Password, user.Password); err != nil {

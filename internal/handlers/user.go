@@ -456,6 +456,15 @@ func ListUserHandler(s server.Server) gin.HandlerFunc {
 
 		limit := c.Query("limit")
 		offset := c.Query("offset")
+
+		if limit == "" {
+			limit = "100"
+		}
+
+		if offset == "" {
+			offset = "1"
+		}
+
 		limitInt, _ := strconv.Atoi(limit)
 		offsetInt, _ := strconv.Atoi(offset)
 
