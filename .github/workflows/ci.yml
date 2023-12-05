@@ -1,0 +1,36 @@
+name: ci-test
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.19
+        id: go
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Build and Test
+        run: |
+          go mod download
+          go test ./...
+
+      - name: Build Docker Image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./deployment/local/Dockerfile
+          push: false # Set to true if you want to push the Docker image to a registry
+          tags: |
+            your-docker-registry/your-repo:latest
