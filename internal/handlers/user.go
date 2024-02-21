@@ -290,6 +290,11 @@ func LoginHandler(s server.Server) gin.HandlerFunc {
 				return
 			}
 
+			if user == nil {
+				HandleError(c, http.StatusUnauthorized, errors.New("user not found"))
+				return
+			}
+
 			userRq = *GetUserResponse(user)
 		}
 

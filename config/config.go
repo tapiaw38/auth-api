@@ -34,7 +34,7 @@ type Config struct {
 	Host               string
 }
 
-func NewConfig() *Config {
+func New() *Config {
 	return &Config{
 		GinMode:            getEnv("GIN_MODE", "debug"),
 		Port:               getEnv("PORT", "8080"),

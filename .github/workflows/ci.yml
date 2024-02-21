@@ -1,4 +1,4 @@
-name: ci-test
+name: CI
 
 on:
   push:
@@ -7,30 +7,48 @@ on:
     branches: [develop]
 
 jobs:
-  test:
-    name: Test
+  build:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_USER: ${{ secrets.DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.DB_NAME }}
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
+        options: >-
+          --health-cmd "rabbitmqctl status"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
-      - name: Set up Go 1.x
-        uses: actions/setup-go@v2
-        with:
-          go-version: ^1.19
-        id: go
+    - name: Check out code
+      uses: actions/checkout@v2
 
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v2
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: ./deployment/local/Dockerfile
+        push: false
+        tags: your-docker-registry/your-repo:latest
 
-      - name: Build and Test
-        run: |
-          go mod download
-          go test ./...
-
-      - name: Build Docker Image
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./deployment/local/Dockerfile
-          push: false # Set to true if you want to push the Docker image to a registry
-          tags: |
-            your-docker-registry/your-repo:latest
+    - name: Run tests
+      run: |
+        # Add commands to run your tests here.

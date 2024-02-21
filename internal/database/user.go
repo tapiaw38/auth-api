@@ -78,12 +78,8 @@ func (repository *PostgresRepository) getUserByQuery(ctx context.Context, query 
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		err = rows.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
+
+	defer rows.Close()
 
 	var user *models.User
 

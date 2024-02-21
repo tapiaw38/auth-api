@@ -2,50 +2,21 @@ package server
 
 import (
 	"errors"
-	"log"
-	"time"
-
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/tapiaw38/auth-api/config"
 	"github.com/tapiaw38/auth-api/internal/cache"
 	"github.com/tapiaw38/auth-api/internal/database"
 	"github.com/tapiaw38/auth-api/internal/rabbitmq"
 	"github.com/tapiaw38/auth-api/internal/repository"
 	"github.com/tapiaw38/auth-api/internal/sso"
 	"github.com/tapiaw38/auth-api/internal/utils"
+	"log"
 )
-
-// Config is the server configuration
-type Config struct {
-	GinMode            string
-	Port               string
-	JWTSecret          string
-	DatabaseURL        string
-	Host               string
-	AWSRegion          string
-	AWSAccessKeyID     string
-	AWSSecretAccessKey string
-	AWSBucket          string
-	RedisHost          string
-	RedisPassword      string
-	RedisDB            int
-	RedisExpires       time.Duration
-	GoogleClientID     string
-	GoogleClientSecret string
-	FrontendURL        string
-	EmailHost          string
-	EmailPort          string
-	EmailHostUser      string
-	EmailHostPassword  string
-	RabbitMQHost       string
-	RabbitMQPort       string
-	RabbitMQUser       string
-	RabbitMQPassword   string
-}
 
 // Server is the server interface
 type Server interface {
-	Config() *Config
+	Config() *config.Config
 	S3() *utils.S3Client
 	Google() *sso.GoogleClient
 	Mail() *utils.EmailSMTPConfig
@@ -55,7 +26,7 @@ type Server interface {
 
 // Broker is the server broker
 type Broker struct {
-	config *Config
+	config *config.Config
 	engine *gin.Engine
 	s3     *utils.S3Client
 	google *sso.GoogleClient
@@ -65,7 +36,7 @@ type Broker struct {
 }
 
 // Config returns the server configuration
-func (b *Broker) Config() *Config {
+func (b *Broker) Config() *config.Config {
 	return b.config
 }
 
@@ -74,7 +45,7 @@ func (b *Broker) S3() *utils.S3Client {
 	return b.s3
 }
 
-// Google returns the google client
+// Google returns the Google client
 func (b *Broker) Google() *sso.GoogleClient {
 	return b.google
 }
@@ -95,7 +66,7 @@ func (b *Broker) Rabbit() *rabbitmq.RabbitMQConfig {
 }
 
 // NewServer creates a new server
-func NewServer(config *Config) (*Broker, error) {
+func New(config *config.Config) (*Broker, error) {
 	if config.Port == "" {
 		return nil, errors.New("port is required")
 	}
@@ -193,15 +164,15 @@ func (b *Broker) Serve(binder func(s Server, e *gin.Engine)) {
 	b.engine = gin.Default()
 
 	// Set the cors
-	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"*"}
-	config.AllowCredentials = true
-	config.AllowMethods = []string{"*"}
-	config.AllowHeaders = []string{"*"}
-	config.ExposeHeaders = []string{"*"}
+	conf := cors.DefaultConfig()
+	conf.AllowOrigins = []string{"*"}
+	conf.AllowCredentials = true
+	conf.AllowMethods = []string{"*"}
+	conf.AllowHeaders = []string{"*"}
+	conf.ExposeHeaders = []string{"*"}
 
 	// Use the cors
-	b.engine.Use(cors.New(config))
+	b.engine.Use(cors.New(conf))
 	//Use the recovery middleware
 	b.engine.Use(gin.Recovery())
 	// Use the logger middleware

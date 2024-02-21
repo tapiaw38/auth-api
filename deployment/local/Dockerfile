@@ -18,6 +18,9 @@ RUN apk update && apk add --no-cache postgresql-client curl && \
     curl -L -o /usr/local/bin/migrate https://github.com/golang-migrate/migrate/releases/download/v4.15.0/migrate.linux-amd64.tar.gz && \
     chmod +x /usr/local/bin/migrate
 
+# Install the package build-base to be able to build the application
+RUN apk add --no-cache build-base
+
 # Copy the rest of the application code
 COPY . /app/
 

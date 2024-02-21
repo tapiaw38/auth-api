@@ -1,0 +1,23 @@
+{
+  "user": {
+    "id": "2Wj8LScVPbULUjewBlX1BtL1mgZ",
+    "first_name": "walter",
+    "last_name": "tapia",
+    "username": "tapiaw38",
+    "email": "tapiaw38@gmail.com",
+    "phone_number": "3837430889",
+    "picture": "https://lh3.googleusercontent.com/a/ACg8ocJVnh4u8GLr-B8xFMJn4ka2ZfF8UTMsqjJ9KWW6zwohqrs=s96-c",
+    "address": "Barrio la paz",
+    "is_active": true,
+    "verified_email": true,
+    "roles": [
+      {
+        "id": "2TY6V1e88Qy2mTgkhgtRx3ubmEj",
+        "name": "user"
+      }
+    ],
+    "created_at": "2023-10-13T22:02:52.996036Z",
+    "updated_at": "2023-10-14T02:09:25.509568Z"
+  },
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIyV2o4TFNjVlBiVUxVamV3QmxYMUJ0TDFtZ1oiLCJlbWFpbCI6InRhcGlhdzM4QGdtYWlsLmNvbSIsImV4cCI6MTcwMjI2MTQyMn0.tk_hoYkcuiJBb8gHvdN0OUJz_9g6nLki0noygnNvYzI"
+}
