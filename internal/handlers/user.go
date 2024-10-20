@@ -26,6 +26,7 @@ type SignUpLoginRequest struct {
 type SignUpResponse struct {
 	Id    string `json:"id"`
 	Email string `json:"email"`
+	Token string `json:"token"`
 }
 
 type LoginResponse struct {
@@ -49,6 +50,7 @@ type ResetPasswordRequest struct {
 
 type ChangePasswordRequest struct {
 	Password string `json:"password"`
+	Token    string `json:"token"`
 }
 
 // SignUpHandler handles the sign up request
@@ -127,10 +129,27 @@ func SignUpHandler(s server.Server) gin.HandlerFunc {
 			return
 		}
 
+		// Generate JWT token
+		claims := models.AppClaims{
+			UserId: u.Id,
+			Email:  u.Email,
+			StandardClaims: jwt.StandardClaims{
+				ExpiresAt: time.Now().Add(2 * time.Hour * 24).Unix(),
+			},
+		}
+
+		ClaimsToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+		ClaimsTokenString, err := ClaimsToken.SignedString([]byte(s.Config().JWTSecret))
+		if err != nil {
+			HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
 		// Send response
 		signUpResponse := SignUpResponse{
 			Id:    u.Id,
 			Email: u.Email,
+			Token: ClaimsTokenString,
 		}
 
 		HandleSuccess(c, http.StatusCreated, "ok", signUpResponse)
@@ -212,7 +231,11 @@ func ResetPasswordHandler(s server.Server) gin.HandlerFunc {
 			return
 		}
 
-		HandleSuccess(c, http.StatusOK, "ok", nil)
+		data := map[string]interface{}{
+			"email":   user.Email,
+			"message": "A password reset link has been sent to your email address. Please follow the link to reset your password.",
+		}
+		HandleSuccess(c, http.StatusOK, "ok", data)
 	}
 }
 
@@ -226,20 +249,24 @@ func ChangePasswordHandler(s server.Server) gin.HandlerFunc {
 			return
 		}
 
-		token := c.Query("token")
-		if token == "" {
+		if request.Token == "" {
 			HandleError(c, http.StatusBadRequest, errors.New("token is required"))
 			return
 		}
 
-		user, err := repository.GetUserByPasswordResetToken(c.Request.Context(), token)
+		user, err := repository.GetUserByPasswordResetToken(c.Request.Context(), request.Token)
 		if err != nil {
 			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
+		if user == nil {
+			HandleError(c, http.StatusUnauthorized, errors.New("token expired or invalid"))
+			return
+		}
+
 		if time.Now().After(user.PasswordResetTokenExpiry) {
-			HandleError(c, http.StatusUnauthorized, errors.New("token expired"))
+			HandleError(c, http.StatusUnauthorized, errors.New("token expired or invalid"))
 			return
 		}
 
@@ -251,13 +278,24 @@ func ChangePasswordHandler(s server.Server) gin.HandlerFunc {
 
 		user.Password = string(hashedPassword)
 
-		_, err = repository.UpdateUser(c.Request.Context(), user.Id, user)
+		u, err := repository.UpdateUser(c.Request.Context(), user.Id, user)
 		if err != nil {
 			HandleError(c, http.StatusInternalServerError, err)
 			return
 		}
 
-		HandleSuccess(c, http.StatusOK, "ok", nil)
+		err = DestroyPasswordResetToken(c.Request.Context(), u)
+		if err != nil {
+			HandleError(c, http.StatusInternalServerError, err)
+			return
+		}
+
+		data := map[string]interface{}{
+			"email":   user.Email,
+			"message": "Your password has been changed successfully.",
+		}
+
+		HandleSuccess(c, http.StatusOK, "ok", data)
 	}
 }
 

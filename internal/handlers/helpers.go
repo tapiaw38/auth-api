@@ -45,7 +45,7 @@ func AddRoleToUser(ctx context.Context, userId, roleName string) (*models.User, 
 func SaveVerifiedEmailToken(ctx context.Context, user *models.User, token string) error {
 	// Save the token to the database.
 	user.VerifiedEmailToken = token
-	user.VerifiedEmailTokenExpiry = time.Now().Add(time.Hour * 48)
+	user.VerifiedEmailTokenExpiry = time.Now().Add(time.Hour * 168)
 
 	updates := map[string]interface{}{
 		"verified_email_token":        user.VerifiedEmailToken,
@@ -65,7 +65,27 @@ func SaveVerifiedEmailToken(ctx context.Context, user *models.User, token string
 func SavePasswordResetToken(ctx context.Context, user *models.User, token string) error {
 	// Save the token to the database.
 	user.PasswordResetToken = token
-	user.PasswordResetTokenExpiry = time.Now().Add(time.Hour * 24)
+	user.PasswordResetTokenExpiry = time.Now().Add(time.Hour * 2)
+
+	updates := map[string]interface{}{
+		"password_reset_token":        user.PasswordResetToken,
+		"password_reset_token_expiry": user.PasswordResetTokenExpiry,
+		"updated_at":                  time.Now(),
+	}
+
+	_, err := repository.PartialUpdateUser(ctx, user.Id, updates)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DestroyVerifiedEmailToken destroys the verified email token
+func DestroyPasswordResetToken(ctx context.Context, user *models.User) error {
+	// Save the token to the database.
+	user.PasswordResetToken = ""
+	user.PasswordResetTokenExpiry = time.Time{}
 
 	updates := map[string]interface{}{
 		"password_reset_token":        user.PasswordResetToken,
