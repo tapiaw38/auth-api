@@ -109,7 +109,7 @@ func SendVerificationEmail(s server.Server, u *models.User, token string) error 
 
 	variables := map[string]string{
 		"name": u.FirstName + " " + u.LastName,
-		"link": s.Config().Host + "/auth/verify-email?token=" + token,
+		"link": s.Config().Domain + "/auth/verify-email?token=" + token,
 	}
 
 	err := s.Rabbit().Connection().PublishEmailMessage(u.Email, s.Config().EmailHostUser, subjet, templateName, variables)

@@ -32,6 +32,7 @@ type Config struct {
 	RabbitMQUser       string
 	RabbitMQPassword   string
 	Host               string
+	Domain             string
 }
 
 func New() *Config {
@@ -60,6 +61,7 @@ func New() *Config {
 		RabbitMQUser:       getEnv("RABBITMQ_USER", ""),
 		RabbitMQPassword:   getEnv("RABBITMQ_PASSWORD", ""),
 		Host:               getEnv("HOST", ""),
+		Domain:             getEnv("DOMAIN", "localhost:8080"),
 	}
 }
 
